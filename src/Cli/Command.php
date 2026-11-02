@@ -1,6 +1,6 @@
 <?php
 /**
- * `wp staging-guard` commands.
+ * `wp axle-staging-guard` commands.
  *
  * @package AryanX\Axle\StagingGuard
  */
@@ -53,7 +53,7 @@ final class Command {
 	}
 
 	/**
-	 * Shows how Staging Guard sees this copy of the site.
+	 * Shows how Axle Staging Guard sees this copy of the site.
 	 *
 	 * ## OPTIONS
 	 *

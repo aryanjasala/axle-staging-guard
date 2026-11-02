@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Builds dist/staging-guard/ and dist/staging-guard.zip from the working tree, leaving out
+# Builds dist/axle-staging-guard/ and dist/axle-staging-guard.zip from the working tree, leaving out
 # everything listed in .distignore. Used by the release and Plugin Check workflows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-slug="staging-guard"
+slug="axle-staging-guard"
 rm -rf dist
 mkdir -p "dist/$slug"
 rsync -a --exclude-from=.distignore ./ "dist/$slug/"

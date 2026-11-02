@@ -27,7 +27,7 @@ final class Environment {
 		'production'  => '#1d2327',
 	);
 
-	private const HASH_CONTEXT = 'staging-guard|';
+	private const HASH_CONTEXT = 'axle-staging-guard|';
 
 	/**
 	 * Saved settings.
@@ -96,7 +96,7 @@ final class Environment {
 		 *     @type string $source How it was detected: constant, hosts, lock, default or filter.
 		 * }
 		 */
-		$this->detected = apply_filters( 'staging_guard_environment', $environment );
+		$this->detected = apply_filters( 'axle_staging_guard_environment', $environment );
 
 		return $this->detected;
 	}
@@ -136,10 +136,10 @@ final class Environment {
 	 */
 	public function label( ?string $type = null ): string {
 		$labels = array(
-			'production'  => __( 'Production', 'staging-guard' ),
-			'staging'     => __( 'Staging', 'staging-guard' ),
-			'development' => __( 'Development', 'staging-guard' ),
-			'local'       => __( 'Local', 'staging-guard' ),
+			'production'  => __( 'Production', 'axle-staging-guard' ),
+			'staging'     => __( 'Staging', 'axle-staging-guard' ),
+			'development' => __( 'Development', 'axle-staging-guard' ),
+			'local'       => __( 'Local', 'axle-staging-guard' ),
 		);
 		$type   = $type ?? $this->type();
 
@@ -149,7 +149,7 @@ final class Environment {
 		 * @param string $label Default Production, Staging, Development or Local.
 		 * @param string $type  Environment type.
 		 */
-		return (string) apply_filters( 'staging_guard_environment_label', $labels[ $type ] ?? ucfirst( $type ), $type );
+		return (string) apply_filters( 'axle_staging_guard_environment_label', $labels[ $type ] ?? ucfirst( $type ), $type );
 	}
 
 	/**
@@ -163,7 +163,7 @@ final class Environment {
 		 *
 		 * @param array<string, string> $colours Environment type => hex colour.
 		 */
-		$colours = (array) apply_filters( 'staging_guard_colours', self::COLOURS );
+		$colours = (array) apply_filters( 'axle_staging_guard_colours', self::COLOURS );
 		$colour  = (string) ( $colours[ $this->type() ] ?? self::COLOURS['staging'] );
 
 		return (string) ( sanitize_hex_color( $colour ) ?? self::COLOURS['staging'] );
@@ -182,7 +182,7 @@ final class Environment {
 	}
 
 	/**
-	 * Domains of the live site, from STAGING_GUARD_PRODUCTION_HOSTS or the filter.
+	 * Domains of the live site, from AXLE_STAGING_GUARD_PRODUCTION_HOSTS or the filter.
 	 *
 	 * When set, they decide production or staging instead of the production
 	 * lock. Useful when the live site answers on several domains, and on
@@ -191,14 +191,14 @@ final class Environment {
 	 * @return string[] Lowercase host names, with a port if they need one.
 	 */
 	public function production_hosts(): array {
-		$hosts = defined( 'STAGING_GUARD_PRODUCTION_HOSTS' ) ? preg_split( '/[\s,]+/', (string) STAGING_GUARD_PRODUCTION_HOSTS ) : array();
+		$hosts = defined( 'AXLE_STAGING_GUARD_PRODUCTION_HOSTS' ) ? preg_split( '/[\s,]+/', (string) AXLE_STAGING_GUARD_PRODUCTION_HOSTS ) : array();
 
 		/**
 		 * Filters the domains of the live site.
 		 *
-		 * @param string[] $hosts Host names, with a port if they need one. Default from STAGING_GUARD_PRODUCTION_HOSTS.
+		 * @param string[] $hosts Host names, with a port if they need one. Default from AXLE_STAGING_GUARD_PRODUCTION_HOSTS.
 		 */
-		$hosts = (array) apply_filters( 'staging_guard_production_hosts', array_filter( (array) $hosts ) );
+		$hosts = (array) apply_filters( 'axle_staging_guard_production_hosts', array_filter( (array) $hosts ) );
 
 		return array_values( array_unique( array_filter( array_map( 'strtolower', array_map( 'trim', array_map( 'strval', $hosts ) ) ) ) ) );
 	}
@@ -278,7 +278,7 @@ final class Environment {
 		 *
 		 * @param string $domain The domain now counted as the live site.
 		 */
-		do_action( 'staging_guard_production_locked', $this->domain() );
+		do_action( 'axle_staging_guard_production_locked', $this->domain() );
 	}
 
 	/**
@@ -291,7 +291,7 @@ final class Environment {
 		/**
 		 * Fires after the production lock is removed.
 		 */
-		do_action( 'staging_guard_production_unlocked' );
+		do_action( 'axle_staging_guard_production_unlocked' );
 	}
 
 	/**
@@ -302,27 +302,27 @@ final class Environment {
 	public function explain(): string {
 		switch ( $this->source() ) {
 			case 'constant':
-				return __( 'Set by WP_ENVIRONMENT_TYPE in wp-config.php or the server environment.', 'staging-guard' );
+				return __( 'Set by WP_ENVIRONMENT_TYPE in wp-config.php or the server environment.', 'axle-staging-guard' );
 
 			case 'hosts':
 				return 'production' === $this->type()
 					/* translators: %s: domain name. */
-					? sprintf( __( 'This domain (%s) is in STAGING_GUARD_PRODUCTION_HOSTS.', 'staging-guard' ), $this->domain() )
+					? sprintf( __( 'This domain (%s) is in AXLE_STAGING_GUARD_PRODUCTION_HOSTS.', 'axle-staging-guard' ), $this->domain() )
 					/* translators: %s: domain name. */
-					: sprintf( __( 'This domain (%s) is not in STAGING_GUARD_PRODUCTION_HOSTS, so it is treated as staging.', 'staging-guard' ), $this->domain() );
+					: sprintf( __( 'This domain (%s) is not in AXLE_STAGING_GUARD_PRODUCTION_HOSTS, so it is treated as staging.', 'axle-staging-guard' ), $this->domain() );
 
 			case 'lock':
 				return $this->is_production_domain()
 					/* translators: %s: domain name. */
-					? sprintf( __( 'The production lock matches this domain (%s).', 'staging-guard' ), $this->domain() )
+					? sprintf( __( 'The production lock matches this domain (%s).', 'axle-staging-guard' ), $this->domain() )
 					/* translators: %s: domain name. */
-					: sprintf( __( 'The production lock was set on a different domain, so this copy on %s is treated as staging.', 'staging-guard' ), $this->domain() );
+					: sprintf( __( 'The production lock was set on a different domain, so this copy on %s is treated as staging.', 'axle-staging-guard' ), $this->domain() );
 
 			case 'default':
-				return __( 'Nothing tells WordPress which environment this is, so it assumes production and the guards are off.', 'staging-guard' );
+				return __( 'Nothing tells WordPress which environment this is, so it assumes production and the guards are off.', 'axle-staging-guard' );
 
 			default:
-				return __( 'Set by the staging_guard_environment filter.', 'staging-guard' );
+				return __( 'Set by the axle_staging_guard_environment filter.', 'axle-staging-guard' );
 		}
 	}
 }

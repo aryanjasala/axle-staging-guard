@@ -79,7 +79,7 @@ final class MailGuardTest extends TestCase {
 			'subject' => 'Disk almost full',
 			'message' => 'Alert',
 		);
-		Filters\expectApplied( 'staging_guard_allow_email' )->once()->andReturn( true );
+		Filters\expectApplied( 'axle_staging_guard_allow_email' )->once()->andReturn( true );
 
 		$this->assertSame( $atts, $guard->filter_mail( $atts ) );
 		$this->assertNull( $guard->short_circuit( null, $atts ) );
@@ -89,7 +89,7 @@ final class MailGuardTest extends TestCase {
 	public function test_the_policy_filter_can_switch_modes_but_not_skip_the_address_check(): void {
 		$guard = $this->guard( array( 'mail_mode' => 'block' ) );
 
-		Filters\expectApplied( 'staging_guard_mail_policy' )->once()->andReturn(
+		Filters\expectApplied( 'axle_staging_guard_mail_policy' )->once()->andReturn(
 			array(
 				'mode'        => 'redirect',
 				'redirect_to' => 'qa@agency.test',
@@ -98,7 +98,7 @@ final class MailGuardTest extends TestCase {
 		);
 		$this->assertSame( 'redirect', $guard->policy()['mode'] );
 
-		Filters\expectApplied( 'staging_guard_mail_policy' )->once()->andReturn(
+		Filters\expectApplied( 'axle_staging_guard_mail_policy' )->once()->andReturn(
 			array(
 				'mode'        => 'redirect',
 				'redirect_to' => 'nope',
@@ -153,9 +153,9 @@ final class MailGuardTest extends TestCase {
 		$this->assertNull( $guard->short_circuit( null, array() ), 'Only the email that was blocked is stopped.' );
 
 		$entry = $this->last_entry();
-		$this->assertSame( 'blocked', $entry['_staging_guard_action'] );
-		$this->assertSame( 'customer@example.com', $entry['_staging_guard_to'] );
-		$this->assertSame( '', $entry['_staging_guard_body'], 'Bodies are not kept unless the setting is on.' );
+		$this->assertSame( 'blocked', $entry['_axle_staging_guard_action'] );
+		$this->assertSame( 'customer@example.com', $entry['_axle_staging_guard_to'] );
+		$this->assertSame( '', $entry['_axle_staging_guard_body'], 'Bodies are not kept unless the setting is on.' );
 		$this->assertSame( Log::POST_TYPE, $this->logged[0]['post_type'] );
 	}
 
@@ -178,7 +178,7 @@ final class MailGuardTest extends TestCase {
 		$this->assertSame( array( 'dev@agency.test' ), $atts['to'] );
 		$this->assertSame( array( 'Cc: lead@agency.test', 'From: Shop <shop@example.com>' ), $atts['headers'] );
 		$this->assertNull( $guard->short_circuit( null, array() ) );
-		$this->assertSame( 'partly_blocked', $this->last_entry()['_staging_guard_action'] );
+		$this->assertSame( 'partly_blocked', $this->last_entry()['_axle_staging_guard_action'] );
 	}
 
 	public function test_redirect_mode_sends_to_the_test_address_with_the_real_recipients_in_the_subject(): void {
@@ -203,7 +203,7 @@ final class MailGuardTest extends TestCase {
 		$this->assertSame( array( 'dev@agency.test', 'qa@agency.test' ), $atts['to'] );
 		$this->assertSame( '[STAGING → customer@example.com, audit@example.com] Your order', $atts['subject'] );
 		$this->assertSame( array(), $atts['headers'] );
-		$this->assertSame( 'Order body', $this->last_entry()['_staging_guard_body'] );
+		$this->assertSame( 'Order body', $this->last_entry()['_axle_staging_guard_body'] );
 	}
 
 	public function test_allow_mode_leaves_email_alone(): void {

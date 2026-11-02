@@ -13,12 +13,12 @@ defined( 'ABSPATH' ) || exit;
  * Reads and writes the plugin's single settings option.
  *
  * The option is autoloaded because the guards read it on every request.
- * STAGING_GUARD_KEEP_BODIES and STAGING_GUARD_NOINDEX in wp-config.php win
+ * AXLE_STAGING_GUARD_KEEP_BODIES and AXLE_STAGING_GUARD_NOINDEX in wp-config.php win
  * over the saved values, the same way the mail constants do.
  */
 final class Settings {
 
-	public const OPTION     = 'staging_guard_settings';
+	public const OPTION     = 'axle_staging_guard_settings';
 	public const MAIL_MODES = array( 'block', 'redirect', 'allow' );
 
 	private const DEFAULTS = array(
@@ -35,8 +35,8 @@ final class Settings {
 	 * Settings a wp-config.php constant can fix: setting => constant.
 	 */
 	private const CONSTANTS = array(
-		'keep_bodies' => 'STAGING_GUARD_KEEP_BODIES',
-		'noindex'     => 'STAGING_GUARD_NOINDEX',
+		'keep_bodies' => 'AXLE_STAGING_GUARD_KEEP_BODIES',
+		'noindex'     => 'AXLE_STAGING_GUARD_NOINDEX',
 	);
 
 	/**
@@ -55,9 +55,9 @@ final class Settings {
 		/**
 		 * Filters whether staging copies are hidden from search engines.
 		 *
-		 * @param bool $noindex From the setting or STAGING_GUARD_NOINDEX. Default true.
+		 * @param bool $noindex From the setting or AXLE_STAGING_GUARD_NOINDEX. Default true.
 		 */
-		$all['noindex'] = (bool) apply_filters( 'staging_guard_noindex', $all['noindex'] );
+		$all['noindex'] = (bool) apply_filters( 'axle_staging_guard_noindex', $all['noindex'] );
 
 		return $all;
 	}

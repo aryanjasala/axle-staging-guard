@@ -1,10 +1,10 @@
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"meta": {
-		"title": "Staging Guard demo",
+		"title": "Axle Staging Guard demo",
 		"author": "aryanjasala"
 	},
-	"landingPage": "/wp-admin/tools.php?page=staging-guard",
+	"landingPage": "/wp-admin/tools.php?page=axle-staging-guard",
 	"preferredVersions": {
 		"php": "8.3",
 		"wp": "latest"
@@ -18,17 +18,17 @@
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "git:directory",
-				"url": "https://github.com/aryanjasala/staging-guard",
+				"url": "https://github.com/aryanjasala/axle-staging-guard",
 				"ref": "main"
 			},
 			"options": {
 				"activate": true,
-				"targetFolderName": "staging-guard"
+				"targetFolderName": "axle-staging-guard"
 			}
 		},
 		{
 			"step": "runPHP",
-			"code": "<?php require_once '/wordpress/wp-load.php'; update_option( 'staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ), 'allowlist' => array( '@youragency.com' ), 'keep_bodies' => true ), false );"
+			"code": "<?php require_once '/wordpress/wp-load.php'; update_option( 'axle_staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ), 'allowlist' => array( '@youragency.com' ), 'keep_bodies' => true ), false );"
 		},
 		{
 			"step": "runPHP",

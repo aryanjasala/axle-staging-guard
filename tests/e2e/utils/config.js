@@ -1,7 +1,7 @@
 const path = require( 'path' );
 
 module.exports = {
-	SLUG: 'staging-guard',
+	SLUG: 'axle-staging-guard',
 	// Each plugin has its own port, so its site can run next to the others.
 	// WP_PORT moves it (start the site with the same WP_PORT), WP_BASE_URL points the tests elsewhere.
 	BASE_URL: process.env.WP_BASE_URL || `http://localhost:${ process.env.WP_PORT || 8909 }`,
@@ -12,5 +12,5 @@ module.exports = {
 	// This plugin's own Docker site by default. A shared site can be used by pointing WP_COMPOSE_DIR at its compose folder.
 	COMPOSE_DIR: process.env.WP_COMPOSE_DIR || path.join( __dirname, '..', 'env' ),
 	// Options the plugin stores, cleared before each run.
-	OPTIONS: ['staging_guard_settings', 'staging_guard_mail_log'],
+	OPTIONS: ['axle_staging_guard_settings', 'axle_staging_guard_mail_log'],
 };

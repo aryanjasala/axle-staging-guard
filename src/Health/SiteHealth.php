@@ -16,7 +16,7 @@ use AryanX\Axle\StagingGuard\Settings;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Adds a Staging Guard test to Tools > Site Health.
+ * Adds a Axle Staging Guard test to Tools > Site Health.
  */
 final class SiteHealth implements Service {
 
@@ -68,8 +68,8 @@ final class SiteHealth implements Service {
 	 * @return array
 	 */
 	public function add_test( array $tests ): array {
-		$tests['direct']['staging_guard'] = array(
-			'label' => __( 'Staging Guard', 'staging-guard' ),
+		$tests['direct']['axle_staging_guard'] = array(
+			'label' => __( 'Axle Staging Guard', 'axle-staging-guard' ),
 			'test'  => array( $this, 'run' ),
 		);
 
@@ -83,28 +83,28 @@ final class SiteHealth implements Service {
 	 */
 	public function run(): array {
 		$guarded = $this->environment->is_guarded();
-		$action  = sprintf( '<p><a href="%s">%s</a></p>', esc_url( admin_url( 'tools.php?page=' . SettingsPage::SLUG ) ), esc_html__( 'Open Staging Guard', 'staging-guard' ) );
+		$action  = sprintf( '<p><a href="%s">%s</a></p>', esc_url( admin_url( 'tools.php?page=' . SettingsPage::SLUG ) ), esc_html__( 'Open Axle Staging Guard', 'axle-staging-guard' ) );
 
 		if ( $guarded && $this->mail->wp_mail_is_replaced() ) {
-			return $this->result( 'critical', __( 'Email from this staging copy can reach real people', 'staging-guard' ), __( 'Another plugin has replaced wp_mail(), so Staging Guard cannot stop email here. Turn off sending in that plugin on this copy.', 'staging-guard' ), $action );
+			return $this->result( 'critical', __( 'Email from this staging copy can reach real people', 'axle-staging-guard' ), __( 'Another plugin has replaced wp_mail(), so Axle Staging Guard cannot stop email here. Turn off sending in that plugin on this copy.', 'axle-staging-guard' ), $action );
 		}
 
 		if ( $guarded && 'allow' === $this->mail->policy()['mode'] ) {
-			return $this->result( 'recommended', __( 'This staging copy sends email normally', 'staging-guard' ), __( 'Staging Guard is set to send email normally, so customers can receive email from this copy.', 'staging-guard' ), $action );
+			return $this->result( 'recommended', __( 'This staging copy sends email normally', 'axle-staging-guard' ), __( 'Axle Staging Guard is set to send email normally, so customers can receive email from this copy.', 'axle-staging-guard' ), $action );
 		}
 
 		$summary = sprintf(
 			/* translators: 1: what happens to email, e.g. "Blocked", 2: "hidden" or "not hidden". */
-			__( 'Email: %1$s. Search engines: %2$s.', 'staging-guard' ),
+			__( 'Email: %1$s. Search engines: %2$s.', 'axle-staging-guard' ),
 			$this->mail->describe(),
-			$this->settings->get( 'noindex' ) ? __( 'hidden', 'staging-guard' ) : __( 'not hidden', 'staging-guard' )
+			$this->settings->get( 'noindex' ) ? __( 'hidden', 'axle-staging-guard' ) : __( 'not hidden', 'axle-staging-guard' )
 		);
 
 		if ( $this->environment->is_staging_by_lock() ) {
 			return $this->result(
 				'recommended',
-				__( 'This site is treated as staging because of the production lock', 'staging-guard' ),
-				$this->environment->explain() . ' ' . $summary . ' ' . __( 'If this is the live site and its address changed, lock it to this domain again. On a real staging copy, set WP_ENVIRONMENT_TYPE to staging in its wp-config.php to make it explicit.', 'staging-guard' ),
+				__( 'This site is treated as staging because of the production lock', 'axle-staging-guard' ),
+				$this->environment->explain() . ' ' . $summary . ' ' . __( 'If this is the live site and its address changed, lock it to this domain again. On a real staging copy, set WP_ENVIRONMENT_TYPE to staging in its wp-config.php to make it explicit.', 'axle-staging-guard' ),
 				$action
 			);
 		}
@@ -113,17 +113,17 @@ final class SiteHealth implements Service {
 			return $this->result(
 				'good',
 				/* translators: %s: environment name, e.g. "Staging". */
-				sprintf( __( 'This copy is guarded (%s)', 'staging-guard' ), $this->environment->label() ),
+				sprintf( __( 'This copy is guarded (%s)', 'axle-staging-guard' ), $this->environment->label() ),
 				$summary,
 				$action
 			);
 		}
 
 		if ( 'default' === $this->environment->source() ) {
-			return $this->result( 'recommended', __( 'Staging copies of this site will not be detected', 'staging-guard' ), __( 'Nothing marks this site as the live one, so a copy of it on staging would also count as production and send real email. Set the production lock, or set WP_ENVIRONMENT_TYPE on each environment.', 'staging-guard' ), $action );
+			return $this->result( 'recommended', __( 'Staging copies of this site will not be detected', 'axle-staging-guard' ), __( 'Nothing marks this site as the live one, so a copy of it on staging would also count as production and send real email. Set the production lock, or set WP_ENVIRONMENT_TYPE on each environment.', 'axle-staging-guard' ), $action );
 		}
 
-		return $this->result( 'good', __( 'Staging copies of this site will be guarded', 'staging-guard' ), $this->environment->explain(), $action );
+		return $this->result( 'good', __( 'Staging copies of this site will be guarded', 'axle-staging-guard' ), $this->environment->explain(), $action );
 	}
 
 	/**
@@ -140,12 +140,12 @@ final class SiteHealth implements Service {
 			'label'       => $label,
 			'status'      => $status,
 			'badge'       => array(
-				'label' => __( 'Security', 'staging-guard' ),
+				'label' => __( 'Security', 'axle-staging-guard' ),
 				'color' => 'blue',
 			),
 			'description' => '<p>' . esc_html( $description ) . '</p>',
 			'actions'     => $actions,
-			'test'        => 'staging_guard',
+			'test'        => 'axle_staging_guard',
 		);
 	}
 }

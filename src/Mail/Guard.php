@@ -90,16 +90,16 @@ final class Guard implements Service {
 	 * @return array{mode: string, redirect_to: string, allowlist: string[], locked: bool}
 	 */
 	public function policy(): array {
-		$mode      = defined( 'STAGING_GUARD_MAIL_MODE' ) ? (string) STAGING_GUARD_MAIL_MODE : (string) $this->settings->get( 'mail_mode' );
-		$to        = defined( 'STAGING_GUARD_REDIRECT_TO' ) ? (string) STAGING_GUARD_REDIRECT_TO : (string) $this->settings->get( 'redirect_to' );
-		$allowlist = defined( 'STAGING_GUARD_ALLOWLIST' ) ? Settings::parse_allowlist( (string) STAGING_GUARD_ALLOWLIST ) : (array) $this->settings->get( 'allowlist' );
+		$mode      = defined( 'AXLE_STAGING_GUARD_MAIL_MODE' ) ? (string) AXLE_STAGING_GUARD_MAIL_MODE : (string) $this->settings->get( 'mail_mode' );
+		$to        = defined( 'AXLE_STAGING_GUARD_REDIRECT_TO' ) ? (string) AXLE_STAGING_GUARD_REDIRECT_TO : (string) $this->settings->get( 'redirect_to' );
+		$allowlist = defined( 'AXLE_STAGING_GUARD_ALLOWLIST' ) ? Settings::parse_allowlist( (string) AXLE_STAGING_GUARD_ALLOWLIST ) : (array) $this->settings->get( 'allowlist' );
 
 		/**
 		 * Filters the addresses and @domains that still get email on a staging copy.
 		 *
 		 * @param string[] $allowlist Lowercase addresses and @domains.
 		 */
-		$allowlist = array_values( array_filter( array_map( 'strtolower', array_map( 'strval', (array) apply_filters( 'staging_guard_allowlist', $allowlist ) ) ) ) );
+		$allowlist = array_values( array_filter( array_map( 'strtolower', array_map( 'strval', (array) apply_filters( 'axle_staging_guard_allowlist', $allowlist ) ) ) ) );
 
 		if ( ! in_array( $mode, Settings::MAIL_MODES, true ) || ( 'redirect' === $mode && ! is_email( $to ) ) ) {
 			$mode = 'block';
@@ -109,7 +109,7 @@ final class Guard implements Service {
 			'mode'        => $mode,
 			'redirect_to' => $to,
 			'allowlist'   => $allowlist,
-			'locked'      => defined( 'STAGING_GUARD_MAIL_MODE' ) || defined( 'STAGING_GUARD_REDIRECT_TO' ) || defined( 'STAGING_GUARD_ALLOWLIST' ),
+			'locked'      => defined( 'AXLE_STAGING_GUARD_MAIL_MODE' ) || defined( 'AXLE_STAGING_GUARD_REDIRECT_TO' ) || defined( 'AXLE_STAGING_GUARD_ALLOWLIST' ),
 		);
 
 		/**
@@ -126,7 +126,7 @@ final class Guard implements Service {
 		 * }
 		 * @param string $environment Environment type: staging, development or local.
 		 */
-		$policy = (array) apply_filters( 'staging_guard_mail_policy', $policy, $this->environment->type() );
+		$policy = (array) apply_filters( 'axle_staging_guard_mail_policy', $policy, $this->environment->type() );
 
 		if ( ! in_array( $policy['mode'] ?? '', Settings::MAIL_MODES, true ) || ( 'redirect' === $policy['mode'] && ! is_email( $policy['redirect_to'] ?? '' ) ) ) {
 			$policy['mode'] = 'block';
@@ -146,13 +146,13 @@ final class Guard implements Service {
 		switch ( $policy['mode'] ) {
 			case 'redirect':
 				/* translators: %s: email address. */
-				return sprintf( __( 'Redirected to %s', 'staging-guard' ), $policy['redirect_to'] );
+				return sprintf( __( 'Redirected to %s', 'axle-staging-guard' ), $policy['redirect_to'] );
 
 			case 'allow':
-				return __( 'Sent normally', 'staging-guard' );
+				return __( 'Sent normally', 'axle-staging-guard' );
 
 			default:
-				return __( 'Blocked', 'staging-guard' );
+				return __( 'Blocked', 'axle-staging-guard' );
 		}
 	}
 
@@ -193,7 +193,7 @@ final class Guard implements Service {
 		 * @param bool  $allow Default false.
 		 * @param array $atts  Arguments passed to wp_mail().
 		 */
-		if ( 'allow' === $policy['mode'] || apply_filters( 'staging_guard_allow_email', false, $atts ) ) {
+		if ( 'allow' === $policy['mode'] || apply_filters( 'axle_staging_guard_allow_email', false, $atts ) ) {
 			return $atts;
 		}
 
@@ -225,7 +225,7 @@ final class Guard implements Service {
 			 * @param string[] $stopped Recipients who did not get it.
 			 * @param array    $atts    Arguments passed to wp_mail().
 			 */
-			$atts['subject'] = (string) apply_filters( 'staging_guard_redirect_subject', sprintf( '[%s → %s] %s', strtoupper( $this->environment->label() ), implode( ', ', $stopped ), $entry['subject'] ), $stopped, $atts );
+			$atts['subject'] = (string) apply_filters( 'axle_staging_guard_redirect_subject', sprintf( '[%s → %s] %s', strtoupper( $this->environment->label() ), implode( ', ', $stopped ), $entry['subject'] ), $stopped, $atts );
 			$this->stopped( array( 'action' => 'redirected' ) + $entry, $atts );
 
 			return $atts;
@@ -254,12 +254,12 @@ final class Guard implements Service {
 		$entry['id'] = $this->log->add( $entry );
 
 		/**
-		 * Fires when Staging Guard blocks or redirects an email.
+		 * Fires when Axle Staging Guard blocks or redirects an email.
 		 *
 		 * @param array $entry What happened: id (log entry), to, subject, action (blocked, redirected or partly_blocked), delivered and body.
-		 * @param array $atts  The wp_mail() arguments after Staging Guard changed them.
+		 * @param array $atts  The wp_mail() arguments after Axle Staging Guard changed them.
 		 */
-		do_action( 'staging_guard_mail_stopped', $entry, $atts );
+		do_action( 'axle_staging_guard_mail_stopped', $entry, $atts );
 	}
 
 	/**
@@ -283,7 +283,7 @@ final class Guard implements Service {
 	}
 
 	/**
-	 * Sends a test email and reports what Staging Guard did with it.
+	 * Sends a test email and reports what Axle Staging Guard did with it.
 	 *
 	 * @param string $to Recipient.
 	 * @return string blocked, redirected, partly_blocked, sent or failed.
@@ -294,10 +294,10 @@ final class Guard implements Service {
 		$sent = wp_mail(
 			$to,
 			/* translators: %s: site name. */
-			sprintf( __( 'Staging Guard test from %s', 'staging-guard' ), get_bloginfo( 'name' ) ),
+			sprintf( __( 'Axle Staging Guard test from %s', 'axle-staging-guard' ), get_bloginfo( 'name' ) ),
 			sprintf(
 				/* translators: 1: site address, 2: environment name. */
-				__( "This is a test email from %1\$s (%2\$s).\n\nIf you are reading it, email from this copy of the site reached you.", 'staging-guard' ),
+				__( "This is a test email from %1\$s (%2\$s).\n\nIf you are reading it, email from this copy of the site reached you.", 'axle-staging-guard' ),
 				home_url(),
 				$this->environment->label()
 			)

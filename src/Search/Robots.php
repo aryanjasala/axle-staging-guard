@@ -56,7 +56,7 @@ final class Robots implements Service {
 		 *
 		 * @param string $output Default: disallow everything.
 		 */
-		return (string) apply_filters( 'staging_guard_robots_txt', "# Staging Guard: this is not the live site.\nUser-agent: *\nDisallow: /\n" );
+		return (string) apply_filters( 'axle_staging_guard_robots_txt', "# Axle Staging Guard: this is not the live site.\nUser-agent: *\nDisallow: /\n" );
 	}
 
 	/**
@@ -79,7 +79,7 @@ final class Robots implements Service {
 
 		printf(
 			'<div class="notice notice-info"><p>%s</p></div>',
-			esc_html__( 'Staging Guard is hiding this copy of the site from search engines, whatever the setting below says. The setting still applies on the live site.', 'staging-guard' )
+			esc_html__( 'Axle Staging Guard is hiding this copy of the site from search engines, whatever the setting below says. The setting still applies on the live site.', 'axle-staging-guard' )
 		);
 	}
 }

@@ -1,5 +1,5 @@
 {
-  "name": "aryanx/staging-guard",
+  "name": "aryanx/axle-staging-guard",
   "description": "Stops staging copies of a WordPress site from emailing real people or getting indexed.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",

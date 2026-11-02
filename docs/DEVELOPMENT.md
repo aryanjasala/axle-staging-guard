@@ -27,7 +27,7 @@ There is no build step: the PHP runs as written, and the scripts in `assets/` us
 | `npm run plugin-check` | Builds the zip and runs the WordPress.org Plugin Check on it in the Docker site, like CI does (`bin/plugin-check.sh`) |
 | `npm run screenshots` | Regenerates the screenshots in `.wordpress-org/` |
 | `npm run demo` | Records the README demo GIF in `.github/media/` (needs ffmpeg) |
-| `bin/build-zip.sh` | Builds `dist/staging-guard.zip`, leaving out everything in `.distignore` |
+| `bin/build-zip.sh` | Builds `dist/axle-staging-guard.zip`, leaving out everything in `.distignore` |
 | `bin/release.sh next` | Shows the version the next release would get |
 
 ## Tests
@@ -96,7 +96,7 @@ Each leg starts from an empty site, and the site is stopped at the end (`--keep`
 
 ## Plugin Check
 
-`npm run plugin-check` builds `dist/staging-guard/` with `bin/build-zip.sh`, mounts it in the Docker site in place of the source, installs the latest Plugin Check from WordPress.org and runs it the way the CI workflow does. Errors and warnings both fail it. If the site was running, it gets the source folder back at the end.
+`npm run plugin-check` builds `dist/axle-staging-guard/` with `bin/build-zip.sh`, mounts it in the Docker site in place of the source, installs the latest Plugin Check from WordPress.org and runs it the way the CI workflow does. Errors and warnings both fail it. If the site was running, it gets the source folder back at the end.
 
 ## Screenshots and demo
 

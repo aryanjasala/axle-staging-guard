@@ -15,7 +15,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-slug="staging-guard"
+slug="axle-staging-guard"
 main_file="$slug.php"
 
 header_version() {

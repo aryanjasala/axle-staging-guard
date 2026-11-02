@@ -1,19 +1,19 @@
 <p align="center"><img src=".wordpress-org/icon-256x256.png" alt="" width="88"></p>
 
-<h1 align="center">Staging Guard</h1>
+<h1 align="center">Axle Staging Guard</h1>
 
 <p align="center">
-  <a href="https://try.axlewp.com/staging-guard"><img src="https://img.shields.io/badge/Try%20in-WordPress%20Playground-3858e9?logo=wordpress&logoColor=white" alt="Try in WordPress Playground"></a>
-  <a href="https://github.com/aryanjasala/staging-guard/releases/latest"><img src="https://img.shields.io/github/v/release/aryanjasala/staging-guard?label=release&color=2271b1" alt="Latest release"></a>
+  <a href="https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/aryanjasala/axle-staging-guard/main/blueprint.json"><img src="https://img.shields.io/badge/Try%20in-WordPress%20Playground-3858e9?logo=wordpress&logoColor=white" alt="Try in WordPress Playground"></a>
+  <a href="https://github.com/aryanjasala/axle-staging-guard/releases/latest"><img src="https://img.shields.io/github/v/release/aryanjasala/axle-staging-guard?label=release&color=2271b1" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/WordPress-6.6%2B-3858e9?logo=wordpress&logoColor=white" alt="WordPress 6.6+">
   <img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?logo=php&logoColor=white" alt="PHP 7.4+">
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-GPL--2.0--or--later-blue" alt="License: GPL-2.0-or-later"></a>
   <br>
-  <a href="https://github.com/aryanjasala/staging-guard/actions/workflows/phpcs.yml"><img src="https://github.com/aryanjasala/staging-guard/actions/workflows/phpcs.yml/badge.svg" alt="PHPCS"></a>
-  <a href="https://github.com/aryanjasala/staging-guard/actions/workflows/phpstan.yml"><img src="https://github.com/aryanjasala/staging-guard/actions/workflows/phpstan.yml/badge.svg" alt="PHPStan"></a>
-  <a href="https://github.com/aryanjasala/staging-guard/actions/workflows/unit-tests.yml"><img src="https://github.com/aryanjasala/staging-guard/actions/workflows/unit-tests.yml/badge.svg" alt="Unit tests"></a>
-  <a href="https://github.com/aryanjasala/staging-guard/actions/workflows/e2e-tests.yml"><img src="https://github.com/aryanjasala/staging-guard/actions/workflows/e2e-tests.yml/badge.svg" alt="E2E tests"></a>
-  <a href="https://github.com/aryanjasala/staging-guard/actions/workflows/plugin-check.yml"><img src="https://github.com/aryanjasala/staging-guard/actions/workflows/plugin-check.yml/badge.svg" alt="Plugin Check"></a>
+  <a href="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/phpcs.yml"><img src="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/phpcs.yml/badge.svg" alt="PHPCS"></a>
+  <a href="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/phpstan.yml"><img src="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/phpstan.yml/badge.svg" alt="PHPStan"></a>
+  <a href="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/unit-tests.yml"><img src="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/unit-tests.yml/badge.svg" alt="Unit tests"></a>
+  <a href="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/e2e-tests.yml"><img src="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/e2e-tests.yml/badge.svg" alt="E2E tests"></a>
+  <a href="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/plugin-check.yml"><img src="https://github.com/aryanjasala/axle-staging-guard/actions/workflows/plugin-check.yml/badge.svg" alt="Plugin Check"></a>
 </p>
 
 <p align="center">Stop staging copies from emailing real customers or showing up in Google, and color the admin bar so nobody edits the wrong copy.</p>
@@ -24,10 +24,12 @@
 
 ---
 
-Every agency has a staging story: a copy of the live database goes to staging and emails every customer, Google indexes it, or someone spends an hour editing it thinking it was live. Staging Guard prevents all three on every copy that is not production, and does nothing on the live site.
+Every agency has a staging story: a copy of the live database goes to staging and emails every customer, Google indexes it, or someone spends an hour editing it thinking it was live. Axle Staging Guard prevents all three on every copy that is not production, and does nothing on the live site.
 
 > [!NOTE]
 > Free and open source under the GPL. No pro version, no upsells, no ads in wp-admin, no tracking. And it stays that way.
+>
+> Part of Axle by AryanX, a family of plugins for running WordPress sites safely.
 
 ## Features
 
@@ -41,25 +43,25 @@ Every agency has a staging story: a copy of the live database goes to staging an
 
 ## Install
 
-1. Download `staging-guard.zip` from the [latest release](https://github.com/aryanjasala/staging-guard/releases/latest).
+1. Download `axle-staging-guard.zip` from the [latest release](https://github.com/aryanjasala/axle-staging-guard/releases/latest).
 2. In WordPress, go to **Plugins > Add New Plugin > Upload Plugin**, choose the zip and activate it.
 
 Or with WP-CLI:
 
 ```sh
-wp plugin install https://github.com/aryanjasala/staging-guard/releases/latest/download/staging-guard.zip --activate
+wp plugin install https://github.com/aryanjasala/axle-staging-guard/releases/latest/download/axle-staging-guard.zip --activate
 ```
 
-Needs WordPress 6.6+ and PHP 7.4+. To try it first, [try.axlewp.com/staging-guard](https://try.axlewp.com/staging-guard) opens a private WordPress in your browser with the latest release and some demo content. Nothing to install.
+Needs WordPress 6.6+ and PHP 7.4+. To try it first, the **Try in WordPress Playground** badge opens a throwaway WordPress in your browser with the plugin and some demo content.
 
 ## Quick look
 
 Pin the email behavior per environment in wp-config.php, so a database copy cannot change it:
 
 ```php
-define( 'STAGING_GUARD_MAIL_MODE', 'redirect' );   // block, redirect or allow
-define( 'STAGING_GUARD_REDIRECT_TO', 'qa@example.com' );
-define( 'STAGING_GUARD_ALLOWLIST', '@youragency.com' );
+define( 'AXLE_STAGING_GUARD_MAIL_MODE', 'redirect' );   // block, redirect or allow
+define( 'AXLE_STAGING_GUARD_REDIRECT_TO', 'qa@example.com' );
+define( 'AXLE_STAGING_GUARD_ALLOWLIST', '@youragency.com' );
 ```
 
 It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, otherwise from the **production lock**: a hash of the live domain, which survives the search-replace step of a migration.
@@ -69,7 +71,7 @@ It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, other
 <table>
   <tr>
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-1.png" alt="The coloured admin bar on a staging copy"><br><sub>The coloured admin bar on a staging copy</sub></td>
-    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Staging Guard with the email log"><br><sub>Tools > Staging Guard with the email log</sub></td>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Axle Staging Guard with the email log"><br><sub>Tools > Axle Staging Guard with the email log</sub></td>
   </tr>
 </table>
 
@@ -87,7 +89,7 @@ It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, other
 ## Project structure
 
 ```
-staging-guard.php          plugin header and PSR-4 autoloader
+axle-staging-guard.php          plugin header and PSR-4 autoloader
 src/
 ├── Plugin.php             creates the services, guards load only when not production
 ├── Settings.php           the settings option and allowlist parsing
@@ -98,7 +100,7 @@ src/
 ├── Search/Robots.php      noindex header and tag, robots.txt, sitemaps
 ├── Admin/                 settings screen, admin bar and tab titles
 ├── Health/SiteHealth.php  the Site Health check
-└── Cli/Command.php        wp staging-guard
+└── Cli/Command.php        wp axle-staging-guard
 tests/
 ├── Unit/                  PHPUnit
 └── e2e/                   Playwright specs and the Docker site
@@ -108,16 +110,23 @@ docs/                      reference, development, contributing, releasing
 
 ## More free plugins
 
-Part of [Axle by AryanX](https://axlewp.com/): small plugins that each fill one gap in WordPress, all free with no pro version. Try them all together at [demo.axlewp.com](https://demo.axlewp.com/).
+Small plugins that each fill one gap in WordPress, all free with no pro version:
 
 | | Plugin | What it does |
 | --- | --- | --- |
 | <img src="https://raw.githubusercontent.com/aryanjasala/page-template-usage/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Page Template Usage](https://github.com/aryanjasala/page-template-usage) | See which template every page uses, and fix the pages on a missing template |
 | <img src="https://raw.githubusercontent.com/aryanjasala/category-tag-trash/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Category & Tag Trash](https://github.com/aryanjasala/category-tag-trash) | A trash for categories, tags and custom terms, with undo and full restore |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-read-only-mode/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Read-Only Mode](https://github.com/aryanjasala/axle-read-only-mode) | Read-only mode for WordPress during migrations and deploys |
-| <img src="https://raw.githubusercontent.com/aryanjasala/restore-blocks-from-revisions/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Restore Blocks from Revisions](https://github.com/aryanjasala/restore-blocks-from-revisions) | Restore a single block from an old revision, not the whole post |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-block-restore/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Block Restore](https://github.com/aryanjasala/axle-block-restore) | Restore a single block from an old revision, not the whole post |
 | <img src="https://raw.githubusercontent.com/aryanjasala/activity-log-with-undo/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Activity Log with Undo](https://github.com/aryanjasala/activity-log-with-undo) | An activity log where every change you can reverse has an Undo button |
 | <img src="https://raw.githubusercontent.com/aryanjasala/agent-governance/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Agent Governance](https://github.com/aryanjasala/agent-governance) | Hold risky AI agent calls for approval, preview what they change, and roll back a session |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-ai-guard/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle AI Guard](https://github.com/aryanjasala/axle-ai-guard) | See and control every AI call your plugins make: cost, data sent, budgets and a kill switch |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-config-sync/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Config Sync](https://github.com/aryanjasala/axle-config-sync) | Keep settings in git, diff them against the live site, apply with a preview and undo |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-leftovers/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Leftovers](https://github.com/aryanjasala/axle-leftovers) | Find what deleted plugins left behind, see who owns it and why, and clean it up with undo |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-license-tracker/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle License Tracker](https://github.com/aryanjasala/axle-license-tracker) | See which premium plugins are licensed, which lapsed and stopped getting updates, and what renews when |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-review/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Review](https://github.com/aryanjasala/axle-review) | Share drafts through private links and collect outside feedback as block Notes |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-runtime-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Runtime Doctor](https://github.com/aryanjasala/axle-runtime-doctor) | Check OPcache coverage, the object cache, PHP support and limits, cron and more, with the fix for your host |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-smoke-test/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Smoke Test](https://github.com/aryanjasala/axle-smoke-test) | Check key pages after every update or deploy, see what broke and roll it back |
 | <img src="https://raw.githubusercontent.com/aryanjasala/block-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Doctor](https://github.com/aryanjasala/block-doctor) | Scan the whole site for invalid and broken blocks and fix them in bulk, with undo |
 | <img src="https://raw.githubusercontent.com/aryanjasala/block-theme-ops/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Theme Ops](https://github.com/aryanjasala/block-theme-ops) | Find Site Editor changes that override your theme files, see the diff, reset them or send them to Git |
 | <img src="https://raw.githubusercontent.com/aryanjasala/role-right-sizer/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Role Right-Sizer](https://github.com/aryanjasala/role-right-sizer) | Recommends the smallest role each user needs, from what they actually do |

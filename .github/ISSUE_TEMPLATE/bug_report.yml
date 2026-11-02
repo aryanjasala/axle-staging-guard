@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Staging Guard does not work the way the docs say.
+description: Something in Axle Staging Guard does not work the way the docs say.
 labels: [bug]
 body:
   - type: textarea
@@ -22,7 +22,7 @@ body:
   - type: input
     id: plugin
     attributes:
-      label: Staging Guard version
+      label: Axle Staging Guard version
       placeholder: "1.1.0"
     validations:
       required: true
