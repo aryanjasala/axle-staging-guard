@@ -4,7 +4,7 @@ Tags: staging, environment, email, noindex, development
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,9 @@ It keeps who an email was for and its subject, and the message only if you turn 
 2. Tools > Axle Staging Guard with the email log.
 
 == Changelog ==
+
+= 2.0.0 =
+* Changed (breaking change): rename to Axle Staging Guard for WordPress.org
 
 = 1.3.0 =
 * Fix: make the abilities visible to MCP agents
