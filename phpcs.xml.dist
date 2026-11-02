@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<ruleset name="Staging Guard">
-	<description>WordPress coding standards for Staging Guard.</description>
+<ruleset name="Axle Staging Guard">
+	<description>WordPress coding standards for Axle Staging Guard.</description>
 
 	<file>.</file>
 	<exclude-pattern>/vendor/*</exclude-pattern>
@@ -24,7 +24,7 @@
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">
-				<element value="staging-guard"/>
+				<element value="axle-staging-guard"/>
 			</property>
 		</properties>
 	</rule>
@@ -33,7 +33,7 @@
 		<properties>
 			<property name="prefixes" type="array">
 				<element value="AryanX\Axle\StagingGuard"/>
-				<element value="staging_guard"/>
+				<element value="axle_staging_guard"/>
 			</property>
 		</properties>
 	</rule>

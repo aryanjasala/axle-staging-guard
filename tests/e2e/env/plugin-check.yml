@@ -4,7 +4,7 @@
 services:
   wp:
     volumes:
-      - ../../../dist/staging-guard:/var/www/html/wp-content/plugins/staging-guard:ro
+      - ../../../dist/axle-staging-guard:/var/www/html/wp-content/plugins/axle-staging-guard:ro
   cli:
     volumes:
-      - ../../../dist/staging-guard:/var/www/html/wp-content/plugins/staging-guard:ro
+      - ../../../dist/axle-staging-guard:/var/www/html/wp-content/plugins/axle-staging-guard:ro

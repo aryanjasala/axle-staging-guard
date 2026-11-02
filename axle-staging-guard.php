@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name:       Staging Guard
- * Plugin URI:        https://wordpress.org/plugins/staging-guard/
+ * Plugin Name:       Axle Staging Guard
+ * Plugin URI:        https://wordpress.org/plugins/axle-staging-guard/
  * Description:       Keeps staging and local copies of a site from emailing real people or getting indexed by search engines, and colours the admin bar so nobody mistakes them for the live site.
  * Version:           1.3.0
  * Requires at least: 6.6
@@ -10,7 +10,7 @@
  * Author URI:        https://profiles.wordpress.org/aryanjasala/
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       staging-guard
+ * Text Domain:       axle-staging-guard
  *
  * @package AryanX\Axle\StagingGuard
  */

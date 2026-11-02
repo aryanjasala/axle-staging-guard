@@ -1,6 +1,6 @@
 <?php
 /**
- * Tools > Staging Guard.
+ * Tools > Axle Staging Guard.
  *
  * @package AryanX\Axle\StagingGuard
  */
@@ -21,9 +21,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class SettingsPage implements Service {
 
-	public const SLUG = 'staging-guard';
+	public const SLUG = 'axle-staging-guard';
 
-	private const ACTION = 'staging_guard';
+	private const ACTION = 'axle_staging_guard';
 
 	/**
 	 * Saved settings.
@@ -69,7 +69,7 @@ final class SettingsPage implements Service {
 	}
 
 	/**
-	 * Capability needed to see and change Staging Guard.
+	 * Capability needed to see and change Axle Staging Guard.
 	 *
 	 * On multisite only network admins may, so one site admin on a staging
 	 * network cannot switch email back on for everyone.
@@ -78,20 +78,20 @@ final class SettingsPage implements Service {
 	 */
 	public static function capability(): string {
 		/**
-		 * Filters the capability needed to see and change Staging Guard.
+		 * Filters the capability needed to see and change Axle Staging Guard.
 		 *
 		 * @param string $capability Default manage_options, or manage_network_options on multisite.
 		 */
-		return (string) apply_filters( 'staging_guard_capability', is_multisite() ? 'manage_network_options' : 'manage_options' );
+		return (string) apply_filters( 'axle_staging_guard_capability', is_multisite() ? 'manage_network_options' : 'manage_options' );
 	}
 
 	/**
-	 * Registers Tools > Staging Guard.
+	 * Registers Tools > Axle Staging Guard.
 	 */
 	public function add_page(): void {
 		$hook = add_management_page(
-			__( 'Staging Guard', 'staging-guard' ),
-			__( 'Staging Guard', 'staging-guard' ),
+			__( 'Axle Staging Guard', 'axle-staging-guard' ),
+			__( 'Axle Staging Guard', 'axle-staging-guard' ),
 			self::capability(),
 			self::SLUG,
 			array( $this, 'render' )
@@ -109,7 +109,7 @@ final class SettingsPage implements Service {
 	 * @return string[]
 	 */
 	public function add_settings_link( array $links ): array {
-		array_unshift( $links, sprintf( '<a href="%s">%s</a>', esc_url( admin_url( 'tools.php?page=' . self::SLUG ) ), esc_html__( 'Settings', 'staging-guard' ) ) );
+		array_unshift( $links, sprintf( '<a href="%s">%s</a>', esc_url( admin_url( 'tools.php?page=' . self::SLUG ) ), esc_html__( 'Settings', 'axle-staging-guard' ) ) );
 
 		return $links;
 	}
@@ -118,7 +118,7 @@ final class SettingsPage implements Service {
 	 * Screen styles.
 	 */
 	public function enqueue_styles(): void {
-		wp_enqueue_style( 'staging-guard-admin', plugins_url( 'assets/admin.css', PLUGIN_FILE ), array(), VERSION );
+		wp_enqueue_style( 'axle-staging-guard-admin', plugins_url( 'assets/admin.css', PLUGIN_FILE ), array(), VERSION );
 	}
 
 	/**
@@ -130,88 +130,88 @@ final class SettingsPage implements Service {
 		$log     = $this->mail->log()->all();
 		$today   = $this->mail->log()->count_since( time() - DAY_IN_SECONDS );
 		?>
-		<div class="wrap sg-page">
-			<h1 class="sg-title">
-				<?php esc_html_e( 'Staging Guard', 'staging-guard' ); ?>
-				<span class="sg-pill" style="background:<?php echo esc_attr( $this->environment->colour() ); ?>"><?php echo esc_html( $this->environment->label() ); ?></span>
+		<div class="wrap asg-page">
+			<h1 class="asg-title">
+				<?php esc_html_e( 'Axle Staging Guard', 'axle-staging-guard' ); ?>
+				<span class="asg-pill" style="background:<?php echo esc_attr( $this->environment->colour() ); ?>"><?php echo esc_html( $this->environment->label() ); ?></span>
 			</h1>
 
 			<?php $this->render_notices(); ?>
 
-			<div class="sg-cards">
-				<div class="sg-card <?php echo $guarded ? 'is-on' : 'is-off'; ?>">
-					<h2><?php esc_html_e( 'This copy', 'staging-guard' ); ?></h2>
-					<p class="sg-card__value"><?php echo esc_html( $this->environment->label() ); ?> &middot; <?php echo $guarded ? esc_html__( 'guards on', 'staging-guard' ) : esc_html__( 'guards off', 'staging-guard' ); ?></p>
+			<div class="asg-cards">
+				<div class="asg-card <?php echo $guarded ? 'is-on' : 'is-off'; ?>">
+					<h2><?php esc_html_e( 'This copy', 'axle-staging-guard' ); ?></h2>
+					<p class="asg-card__value"><?php echo esc_html( $this->environment->label() ); ?> &middot; <?php echo $guarded ? esc_html__( 'guards on', 'axle-staging-guard' ) : esc_html__( 'guards off', 'axle-staging-guard' ); ?></p>
 					<p><?php echo esc_html( $this->environment->explain() ); ?></p>
 				</div>
-				<div class="sg-card <?php echo ( $guarded && 'allow' !== $policy['mode'] ) ? 'is-on' : 'is-off'; ?>">
-					<h2><?php esc_html_e( 'Email', 'staging-guard' ); ?></h2>
-					<p class="sg-card__value"><?php echo esc_html( $guarded ? $this->mail->describe() : __( 'Sent normally (live site)', 'staging-guard' ) ); ?></p>
+				<div class="asg-card <?php echo ( $guarded && 'allow' !== $policy['mode'] ) ? 'is-on' : 'is-off'; ?>">
+					<h2><?php esc_html_e( 'Email', 'axle-staging-guard' ); ?></h2>
+					<p class="asg-card__value"><?php echo esc_html( $guarded ? $this->mail->describe() : __( 'Sent normally (live site)', 'axle-staging-guard' ) ); ?></p>
 					<p>
 						<?php
 						echo esc_html(
 							sprintf(
 								/* translators: %d: number of emails. */
-								_n( '%d email stopped in the last 24 hours.', '%d emails stopped in the last 24 hours.', $today, 'staging-guard' ),
+								_n( '%d email stopped in the last 24 hours.', '%d emails stopped in the last 24 hours.', $today, 'axle-staging-guard' ),
 								$today
 							)
 						);
 						?>
 					</p>
 				</div>
-				<div class="sg-card <?php echo ( $guarded && $this->settings->get( 'noindex' ) ) ? 'is-on' : 'is-off'; ?>">
-					<h2><?php esc_html_e( 'Search engines', 'staging-guard' ); ?></h2>
-					<p class="sg-card__value">
+				<div class="asg-card <?php echo ( $guarded && $this->settings->get( 'noindex' ) ) ? 'is-on' : 'is-off'; ?>">
+					<h2><?php esc_html_e( 'Search engines', 'axle-staging-guard' ); ?></h2>
+					<p class="asg-card__value">
 						<?php
 						if ( ! $guarded ) {
-							esc_html_e( 'Not changed (live site)', 'staging-guard' );
+							esc_html_e( 'Not changed (live site)', 'axle-staging-guard' );
 						} elseif ( $this->settings->get( 'noindex' ) ) {
-							esc_html_e( 'Hidden', 'staging-guard' );
+							esc_html_e( 'Hidden', 'axle-staging-guard' );
 						} else {
-							esc_html_e( 'Not hidden', 'staging-guard' );
+							esc_html_e( 'Not hidden', 'axle-staging-guard' );
 						}
 						?>
 					</p>
-					<p><?php esc_html_e( 'Noindex header and meta tag, a blocking robots.txt, and no sitemap.', 'staging-guard' ); ?></p>
+					<p><?php esc_html_e( 'Noindex header and meta tag, a blocking robots.txt, and no sitemap.', 'axle-staging-guard' ); ?></p>
 				</div>
 			</div>
 
 			<?php if ( $this->mail->wp_mail_is_replaced() ) : ?>
-				<div class="notice notice-error inline"><p><?php esc_html_e( 'Another plugin has replaced the wp_mail() function, so Staging Guard cannot stop or redirect email on this site. Turn off sending in that plugin on staging.', 'staging-guard' ); ?></p></div>
+				<div class="notice notice-error inline"><p><?php esc_html_e( 'Another plugin has replaced the wp_mail() function, so Axle Staging Guard cannot stop or redirect email on this site. Turn off sending in that plugin on staging.', 'axle-staging-guard' ); ?></p></div>
 			<?php endif; ?>
 
-			<div class="sg-columns">
-				<div class="sg-panel">
-					<h2><?php esc_html_e( 'When this is not the live site', 'staging-guard' ); ?></h2>
+			<div class="asg-columns">
+				<div class="asg-panel">
+					<h2><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
 					<?php $this->render_settings_form( $policy ); ?>
 				</div>
 
-				<div class="sg-side">
+				<div class="asg-side">
 					<?php if ( 'constant' !== $this->environment->source() ) : ?>
-						<div class="sg-panel">
-							<h2><?php esc_html_e( 'Production lock', 'staging-guard' ); ?></h2>
-							<p><?php esc_html_e( 'Set this once on the live site. Every copy of its database on another domain is then treated as staging, with no change to wp-config.php.', 'staging-guard' ); ?></p>
+						<div class="asg-panel">
+							<h2><?php esc_html_e( 'Production lock', 'axle-staging-guard' ); ?></h2>
+							<p><?php esc_html_e( 'Set this once on the live site. Every copy of its database on another domain is then treated as staging, with no change to wp-config.php.', 'axle-staging-guard' ); ?></p>
 							<?php
 							if ( $this->environment->is_locked() ) {
-								$this->render_button( 'unlock', __( 'Remove production lock', 'staging-guard' ) );
+								$this->render_button( 'unlock', __( 'Remove production lock', 'axle-staging-guard' ) );
 							} else {
 								/* translators: %s: domain name. */
-								$this->render_button( 'lock', sprintf( __( 'This is the live site: lock to %s', 'staging-guard' ), $this->environment->domain() ), 'primary' );
+								$this->render_button( 'lock', sprintf( __( 'This is the live site: lock to %s', 'axle-staging-guard' ), $this->environment->domain() ), 'primary' );
 							}
 							?>
 						</div>
 					<?php endif; ?>
 
-					<div class="sg-panel">
-						<h2><?php esc_html_e( 'Send a test email', 'staging-guard' ); ?></h2>
-						<p><?php echo esc_html( $guarded ? __( 'See what happens to email from this copy.', 'staging-guard' ) : __( 'This is the live site, so the test email is really sent.', 'staging-guard' ) ); ?></p>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="sg-inline-form">
+					<div class="asg-panel">
+						<h2><?php esc_html_e( 'Send a test email', 'axle-staging-guard' ); ?></h2>
+						<p><?php echo esc_html( $guarded ? __( 'See what happens to email from this copy.', 'axle-staging-guard' ) : __( 'This is the live site, so the test email is really sent.', 'axle-staging-guard' ) ); ?></p>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
 							<?php wp_nonce_field( self::ACTION ); ?>
 							<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
 							<input type="hidden" name="task" value="test_email">
-							<label for="sg-test-to" class="screen-reader-text"><?php esc_html_e( 'Send to', 'staging-guard' ); ?></label>
-							<input type="email" id="sg-test-to" name="test_to" class="regular-text" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" required>
-							<?php submit_button( __( 'Send', 'staging-guard' ), 'secondary', 'submit', false ); ?>
+							<label for="asg-test-to" class="screen-reader-text"><?php esc_html_e( 'Send to', 'axle-staging-guard' ); ?></label>
+							<input type="email" id="asg-test-to" name="test_to" class="regular-text" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" required>
+							<?php submit_button( __( 'Send', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
 						</form>
 					</div>
 				</div>
@@ -236,35 +236,35 @@ final class SettingsPage implements Service {
 			<input type="hidden" name="task" value="save">
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Outgoing email', 'staging-guard' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Outgoing email', 'axle-staging-guard' ); ?></th>
 					<td>
 						<fieldset <?php disabled( $policy['locked'] ); ?>>
-							<legend class="screen-reader-text"><?php esc_html_e( 'Outgoing email', 'staging-guard' ); ?></legend>
-							<label><input type="radio" name="mail_mode" value="block" <?php checked( 'block', $settings['mail_mode'] ); ?>> <?php esc_html_e( 'Block (recommended)', 'staging-guard' ); ?></label><br>
-							<label><input type="radio" name="mail_mode" value="redirect" <?php checked( 'redirect', $settings['mail_mode'] ); ?>> <?php esc_html_e( 'Send everything to one test address', 'staging-guard' ); ?></label><br>
-							<label for="sg-redirect-to" class="screen-reader-text"><?php esc_html_e( 'Test address', 'staging-guard' ); ?></label>
-							<input type="email" id="sg-redirect-to" class="regular-text sg-indent" name="redirect_to" value="<?php echo esc_attr( $settings['redirect_to'] ); ?>" placeholder="qa@example.com"><br>
-							<label><input type="radio" name="mail_mode" value="allow" <?php checked( 'allow', $settings['mail_mode'] ); ?>> <?php esc_html_e( 'Send normally', 'staging-guard' ); ?></label>
+							<legend class="screen-reader-text"><?php esc_html_e( 'Outgoing email', 'axle-staging-guard' ); ?></legend>
+							<label><input type="radio" name="mail_mode" value="block" <?php checked( 'block', $settings['mail_mode'] ); ?>> <?php esc_html_e( 'Block (recommended)', 'axle-staging-guard' ); ?></label><br>
+							<label><input type="radio" name="mail_mode" value="redirect" <?php checked( 'redirect', $settings['mail_mode'] ); ?>> <?php esc_html_e( 'Send everything to one test address', 'axle-staging-guard' ); ?></label><br>
+							<label for="asg-redirect-to" class="screen-reader-text"><?php esc_html_e( 'Test address', 'axle-staging-guard' ); ?></label>
+							<input type="email" id="asg-redirect-to" class="regular-text asg-indent" name="redirect_to" value="<?php echo esc_attr( $settings['redirect_to'] ); ?>" placeholder="qa@example.com"><br>
+							<label><input type="radio" name="mail_mode" value="allow" <?php checked( 'allow', $settings['mail_mode'] ); ?>> <?php esc_html_e( 'Send normally', 'axle-staging-guard' ); ?></label>
 						</fieldset>
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="sg-allowlist"><?php esc_html_e( 'Always deliver to', 'staging-guard' ); ?></label></th>
+					<th scope="row"><label for="asg-allowlist"><?php esc_html_e( 'Always deliver to', 'axle-staging-guard' ); ?></label></th>
 					<td>
-						<textarea id="sg-allowlist" name="allowlist" rows="3" class="large-text code" placeholder="@youragency.com&#10;client@example.com" <?php disabled( $policy['locked'] ); ?>><?php echo esc_textarea( implode( "\n", (array) $settings['allowlist'] ) ); ?></textarea>
-						<p class="description"><?php esc_html_e( 'One address or @domain per line. These recipients get email normally, so your team can test real flows. Everyone else is blocked or redirected.', 'staging-guard' ); ?></p>
+						<textarea id="asg-allowlist" name="allowlist" rows="3" class="large-text code" placeholder="@youragency.com&#10;client@example.com" <?php disabled( $policy['locked'] ); ?>><?php echo esc_textarea( implode( "\n", (array) $settings['allowlist'] ) ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'One address or @domain per line. These recipients get email normally, so your team can test real flows. Everyone else is blocked or redirected.', 'axle-staging-guard' ); ?></p>
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Email log', 'staging-guard' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Email log', 'axle-staging-guard' ); ?></th>
 					<td>
-						<label><input type="checkbox" name="keep_bodies" value="1" <?php checked( $settings['keep_bodies'] ); ?> <?php disabled( $this->settings->is_fixed( 'keep_bodies' ) ); ?>> <?php esc_html_e( 'Keep message bodies in the log', 'staging-guard' ); ?></label>
+						<label><input type="checkbox" name="keep_bodies" value="1" <?php checked( $settings['keep_bodies'] ); ?> <?php disabled( $this->settings->is_fixed( 'keep_bodies' ) ); ?>> <?php esc_html_e( 'Keep message bodies in the log', 'axle-staging-guard' ); ?></label>
 						<p class="description">
 							<?php
 							echo esc_html(
 								sprintf(
 									/* translators: %d: number of days. */
-									_n( 'Useful for checking email content on staging. Off by default because emails can contain personal data and password reset links. Entries are deleted after %d day.', 'Useful for checking email content on staging. Off by default because emails can contain personal data and password reset links. Entries are deleted after %d days.', $this->mail->log()->days(), 'staging-guard' ),
+									_n( 'Useful for checking email content on staging. Off by default because emails can contain personal data and password reset links. Entries are deleted after %d day.', 'Useful for checking email content on staging. Off by default because emails can contain personal data and password reset links. Entries are deleted after %d days.', $this->mail->log()->days(), 'axle-staging-guard' ),
 									$this->mail->log()->days()
 								)
 							);
@@ -273,19 +273,19 @@ final class SettingsPage implements Service {
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Search engines', 'staging-guard' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Search engines', 'axle-staging-guard' ); ?></th>
 					<td>
-						<label><input type="checkbox" name="noindex" value="1" <?php checked( $settings['noindex'] ); ?> <?php disabled( $this->settings->is_fixed( 'noindex' ) ); ?>> <?php esc_html_e( 'Hide from search engines', 'staging-guard' ); ?></label>
+						<label><input type="checkbox" name="noindex" value="1" <?php checked( $settings['noindex'] ); ?> <?php disabled( $this->settings->is_fixed( 'noindex' ) ); ?>> <?php esc_html_e( 'Hide from search engines', 'axle-staging-guard' ); ?></label>
 					</td>
 				</tr>
 			</table>
 			<?php if ( $policy['locked'] ) : ?>
-				<p class="description"><?php esc_html_e( 'Email settings are fixed in wp-config.php (STAGING_GUARD_MAIL_MODE, STAGING_GUARD_REDIRECT_TO or STAGING_GUARD_ALLOWLIST).', 'staging-guard' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Email settings are fixed in wp-config.php (AXLE_STAGING_GUARD_MAIL_MODE, AXLE_STAGING_GUARD_REDIRECT_TO or AXLE_STAGING_GUARD_ALLOWLIST).', 'axle-staging-guard' ); ?></p>
 			<?php endif; ?>
 			<?php if ( $this->settings->is_fixed( 'keep_bodies' ) || $this->settings->is_fixed( 'noindex' ) ) : ?>
-				<p class="description"><?php esc_html_e( 'Greyed-out settings are fixed in wp-config.php (STAGING_GUARD_KEEP_BODIES or STAGING_GUARD_NOINDEX).', 'staging-guard' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Greyed-out settings are fixed in wp-config.php (AXLE_STAGING_GUARD_KEEP_BODIES or AXLE_STAGING_GUARD_NOINDEX).', 'axle-staging-guard' ); ?></p>
 			<?php endif; ?>
-			<?php submit_button( __( 'Save settings', 'staging-guard' ) ); ?>
+			<?php submit_button( __( 'Save settings', 'axle-staging-guard' ) ); ?>
 		</form>
 		<?php
 	}
@@ -297,54 +297,54 @@ final class SettingsPage implements Service {
 	 */
 	private function render_log( array $log ): void {
 		$actions = array(
-			'blocked'        => __( 'Blocked', 'staging-guard' ),
-			'redirected'     => __( 'Redirected', 'staging-guard' ),
-			'partly_blocked' => __( 'Partly blocked', 'staging-guard' ),
+			'blocked'        => __( 'Blocked', 'axle-staging-guard' ),
+			'redirected'     => __( 'Redirected', 'axle-staging-guard' ),
+			'partly_blocked' => __( 'Partly blocked', 'axle-staging-guard' ),
 		);
 		?>
-		<div class="sg-panel sg-log">
-			<div class="sg-log__head">
-				<h2><?php esc_html_e( 'Stopped email', 'staging-guard' ); ?></h2>
+		<div class="asg-panel asg-log">
+			<div class="asg-log__head">
+				<h2><?php esc_html_e( 'Stopped email', 'axle-staging-guard' ); ?></h2>
 				<?php
 				if ( $log ) {
-					$this->render_button( 'clear_log', __( 'Clear list', 'staging-guard' ), 'link-delete' );
+					$this->render_button( 'clear_log', __( 'Clear list', 'axle-staging-guard' ), 'link-delete' );
 				}
 				?>
 			</div>
 			<?php if ( ! $log ) : ?>
-				<p><?php esc_html_e( 'No email has been stopped yet.', 'staging-guard' ); ?></p>
+				<p><?php esc_html_e( 'No email has been stopped yet.', 'axle-staging-guard' ); ?></p>
 			<?php else : ?>
 				<table class="widefat striped">
 					<thead>
 						<tr>
-							<th scope="col"><?php esc_html_e( 'When', 'staging-guard' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'To', 'staging-guard' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'Subject', 'staging-guard' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'What happened', 'staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'When', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'To', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Subject', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'What happened', 'axle-staging-guard' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php foreach ( $log as $entry ) : ?>
-							<tr class="sg-log__row">
+							<tr class="asg-log__row">
 								<td><?php echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $entry['time'] ) ); ?></td>
 								<td><?php echo esc_html( $entry['to'] ); ?></td>
 								<td>
 									<?php if ( ! empty( $entry['body'] ) ) : ?>
 										<details>
 											<summary><?php echo esc_html( $entry['subject'] ); ?></summary>
-											<pre class="sg-log__body"><?php echo esc_html( $entry['body'] ); ?></pre>
+											<pre class="asg-log__body"><?php echo esc_html( $entry['body'] ); ?></pre>
 										</details>
 									<?php else : ?>
 										<?php echo esc_html( $entry['subject'] ); ?>
 									<?php endif; ?>
 								</td>
 								<td>
-									<span class="sg-badge sg-badge--<?php echo esc_attr( $entry['action'] ); ?>"><?php echo esc_html( $actions[ $entry['action'] ] ?? $entry['action'] ); ?></span>
+									<span class="asg-badge asg-badge--<?php echo esc_attr( $entry['action'] ); ?>"><?php echo esc_html( $actions[ $entry['action'] ] ?? $entry['action'] ); ?></span>
 									<?php if ( ! empty( $entry['delivered'] ) ) : ?>
 										<br><small>
 											<?php
 											/* translators: %s: email addresses. */
-											echo esc_html( sprintf( __( 'Still delivered to %s', 'staging-guard' ), $entry['delivered'] ) );
+											echo esc_html( sprintf( __( 'Still delivered to %s', 'axle-staging-guard' ), $entry['delivered'] ) );
 											?>
 										</small>
 									<?php endif; ?>
@@ -367,7 +367,7 @@ final class SettingsPage implements Service {
 	 */
 	private function render_button( string $task, string $label, string $style = 'secondary' ): void {
 		?>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="sg-button-form">
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-button-form">
 			<?php wp_nonce_field( self::ACTION ); ?>
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
 			<input type="hidden" name="task" value="<?php echo esc_attr( $task ); ?>">
@@ -386,17 +386,17 @@ final class SettingsPage implements Service {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$messages = array(
-			'saved'    => __( 'Settings saved.', 'staging-guard' ),
-			'locked'   => __( 'Production is locked to this domain. Copies on other domains are now treated as staging.', 'staging-guard' ),
-			'unlocked' => __( 'Production lock removed.', 'staging-guard' ),
-			'cleared'  => __( 'Email list cleared.', 'staging-guard' ),
+			'saved'    => __( 'Settings saved.', 'axle-staging-guard' ),
+			'locked'   => __( 'Production is locked to this domain. Copies on other domains are now treated as staging.', 'axle-staging-guard' ),
+			'unlocked' => __( 'Production lock removed.', 'axle-staging-guard' ),
+			'cleared'  => __( 'Email list cleared.', 'axle-staging-guard' ),
 		);
 		$tests    = array(
-			'blocked'        => __( 'Test email blocked. It is listed under Stopped email.', 'staging-guard' ),
-			'redirected'     => __( 'Test email redirected to the test address.', 'staging-guard' ),
-			'partly_blocked' => __( 'Test email partly blocked.', 'staging-guard' ),
-			'sent'           => __( 'Test email handed to the mail server.', 'staging-guard' ),
-			'failed'         => __( 'WordPress could not send the test email. Check the site\'s mail setup.', 'staging-guard' ),
+			'blocked'        => __( 'Test email blocked. It is listed under Stopped email.', 'axle-staging-guard' ),
+			'redirected'     => __( 'Test email redirected to the test address.', 'axle-staging-guard' ),
+			'partly_blocked' => __( 'Test email partly blocked.', 'axle-staging-guard' ),
+			'sent'           => __( 'Test email handed to the mail server.', 'axle-staging-guard' ),
+			'failed'         => __( 'WordPress could not send the test email. Check the site\'s mail setup.', 'axle-staging-guard' ),
 		);
 
 		if ( isset( $messages[ $message ] ) ) {
@@ -404,7 +404,7 @@ final class SettingsPage implements Service {
 		}
 
 		if ( isset( $tests[ $result ] ) ) {
-			printf( '<div class="notice notice-%s is-dismissible sg-test-result"><p>%s</p></div>', 'failed' === $result ? 'error' : 'info', esc_html( $tests[ $result ] ) );
+			printf( '<div class="notice notice-%s is-dismissible asg-test-result"><p>%s</p></div>', 'failed' === $result ? 'error' : 'info', esc_html( $tests[ $result ] ) );
 		}
 	}
 
@@ -413,7 +413,7 @@ final class SettingsPage implements Service {
 	 */
 	public function handle_form(): void {
 		if ( ! current_user_can( self::capability() ) ) {
-			wp_die( esc_html__( 'Sorry, you are not allowed to change these settings.', 'staging-guard' ), 403 );
+			wp_die( esc_html__( 'Sorry, you are not allowed to change these settings.', 'axle-staging-guard' ), 403 );
 		}
 
 		check_admin_referer( self::ACTION );

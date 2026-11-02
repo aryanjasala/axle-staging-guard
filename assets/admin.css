@@ -1,10 +1,10 @@
-.sg-title {
+.asg-title {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 }
 
-.sg-pill {
+.asg-pill {
 	display: inline-block;
 	padding: 3px 10px;
 	border-radius: 12px;
@@ -15,40 +15,40 @@
 	text-transform: uppercase;
 }
 
-.sg-cards {
+.asg-cards {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 	gap: 16px;
 	margin: 16px 0;
 }
 
-.sg-card,
-.sg-panel {
+.asg-card,
+.asg-panel {
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 4px;
 	padding: 16px 20px;
 }
 
-.sg-card {
+.asg-card {
 	border-top: 4px solid #8c8f94;
 }
 
-.sg-card.is-on {
+.asg-card.is-on {
 	border-top-color: #00a32a;
 }
 
-.sg-card.is-off {
+.asg-card.is-off {
 	border-top-color: #8c8f94;
 }
 
-.sg-card h2,
-.sg-panel h2 {
+.asg-card h2,
+.asg-panel h2 {
 	margin: 0 0 8px;
 	font-size: 14px;
 }
 
-.sg-card h2 {
+.asg-card h2 {
 	color: #646970;
 	font-weight: 400;
 	text-transform: uppercase;
@@ -56,59 +56,59 @@
 	font-size: 12px;
 }
 
-.sg-card__value {
+.asg-card__value {
 	margin: 0 0 6px;
 	font-size: 16px;
 	font-weight: 600;
 }
 
-.sg-card p:last-child {
+.asg-card p:last-child {
 	margin-bottom: 0;
 	color: #50575e;
 }
 
-.sg-columns {
+.asg-columns {
 	display: grid;
 	grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
 	gap: 16px;
 	align-items: start;
 }
 
-.sg-side {
+.asg-side {
 	display: grid;
 	gap: 16px;
 }
 
-.sg-panel .form-table th {
+.asg-panel .form-table th {
 	width: 160px;
 }
 
-.sg-indent {
+.asg-indent {
 	margin: 4px 0 6px 24px;
 }
 
-.sg-inline-form {
+.asg-inline-form {
 	display: flex;
 	gap: 6px;
 	flex-wrap: wrap;
 }
 
-.sg-inline-form .regular-text {
+.asg-inline-form .regular-text {
 	flex: 1 1 200px;
 	width: auto;
 }
 
-.sg-log {
+.asg-log {
 	margin-top: 16px;
 }
 
-.sg-log__head {
+.asg-log__head {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 }
 
-.sg-log__body {
+.asg-log__body {
 	white-space: pre-wrap;
 	max-height: 320px;
 	overflow: auto;
@@ -117,12 +117,12 @@
 	margin: 8px 0 0;
 }
 
-.sg-log summary {
+.asg-log summary {
 	cursor: pointer;
 	color: #2271b1;
 }
 
-.sg-badge {
+.asg-badge {
 	display: inline-block;
 	padding: 2px 8px;
 	border-radius: 10px;
@@ -131,18 +131,18 @@
 	color: #8a2424;
 }
 
-.sg-badge--redirected {
+.asg-badge--redirected {
 	background: #f0f6fc;
 	color: #0a4b78;
 }
 
-.sg-badge--partly_blocked {
+.asg-badge--partly_blocked {
 	background: #fcf9e8;
 	color: #614200;
 }
 
 @media screen and (max-width: 960px) {
-	.sg-columns {
+	.asg-columns {
 		grid-template-columns: 1fr;
 	}
 }

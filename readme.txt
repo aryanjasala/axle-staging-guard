@@ -1,4 +1,4 @@
-=== Staging Guard ===
+=== Axle Staging Guard ===
 Contributors: aryanjasala
 Tags: staging, environment, email, noindex, development
 Requires at least: 6.6
@@ -18,7 +18,7 @@ Every agency has a staging story. A copy of the live database goes to staging, a
 * Google indexes staging.example.com and it outranks the real site,
 * someone spends an hour editing staging, thinking it was live.
 
-Staging Guard prevents all three, on every copy that is not the live site.
+Axle Staging Guard prevents all three, on every copy that is not the live site.
 
 **On staging, development and local copies it:**
 
@@ -35,36 +35,38 @@ Staging Guard prevents all three, on every copy that is not the live site.
 
 Free and open source under the GPL. No pro version, no upsells, no ads in wp-admin, no tracking. And it stays that way.
 
+Part of Axle by AryanX, a family of plugins for running WordPress sites safely.
+
 = How it knows which copy is live =
 
 1. If `WP_ENVIRONMENT_TYPE` is set in wp-config.php or in the server environment, it uses that. This is the WordPress standard, and many hosts set it for you.
-2. Otherwise, use the **production lock**: on the live site, go to Tools > Staging Guard and click "This is the live site". From then on, any copy of the database running on a different domain is treated as staging, with no wp-config.php change.
+2. Otherwise, use the **production lock**: on the live site, go to Tools > Axle Staging Guard and click "This is the live site". From then on, any copy of the database running on a different domain is treated as staging, with no wp-config.php change.
 
 The lock stores a hash of the live domain instead of the domain itself. Migration tools that search and replace the domain name in the database leave the hash alone, so the lock survives the copy to staging.
 
-If neither is set, WordPress assumes production and Staging Guard stays off.
+If neither is set, WordPress assumes production and Axle Staging Guard stays off.
 
 = Settings in wp-config.php =
 
 Fix the email behaviour per environment, so a database copy cannot change it:
 
-`define( 'STAGING_GUARD_MAIL_MODE', 'redirect' ); // block, redirect or allow`
-`define( 'STAGING_GUARD_REDIRECT_TO', 'qa@example.com' );`
-`define( 'STAGING_GUARD_ALLOWLIST', '@youragency.com, client@example.com' );`
-`define( 'STAGING_GUARD_PRODUCTION_HOSTS', 'example.com, shop.example.com' ); // the live domains`
-`define( 'STAGING_GUARD_KEEP_BODIES', false );`
-`define( 'STAGING_GUARD_NOINDEX', true );`
-`define( 'STAGING_GUARD_LOG_DAYS', 7 );`
+`define( 'AXLE_STAGING_GUARD_MAIL_MODE', 'redirect' ); // block, redirect or allow`
+`define( 'AXLE_STAGING_GUARD_REDIRECT_TO', 'qa@example.com' );`
+`define( 'AXLE_STAGING_GUARD_ALLOWLIST', '@youragency.com, client@example.com' );`
+`define( 'AXLE_STAGING_GUARD_PRODUCTION_HOSTS', 'example.com, shop.example.com' ); // the live domains`
+`define( 'AXLE_STAGING_GUARD_KEEP_BODIES', false );`
+`define( 'AXLE_STAGING_GUARD_NOINDEX', true );`
+`define( 'AXLE_STAGING_GUARD_LOG_DAYS', 7 );`
 
 = WP-CLI =
 
-* `wp staging-guard status` shows the environment, how it was detected, and what is guarded.
-* `wp staging-guard lock-production` marks the current domain as the live site.
-* `wp staging-guard unlock-production` removes the lock.
-* `wp staging-guard log` lists stopped email.
-* `wp staging-guard test-email you@example.com` sends a test email and reports what happened to it.
+* `wp axle-staging-guard status` shows the environment, how it was detected, and what is guarded.
+* `wp axle-staging-guard lock-production` marks the current domain as the live site.
+* `wp axle-staging-guard unlock-production` removes the lock.
+* `wp axle-staging-guard log` lists stopped email.
+* `wp axle-staging-guard test-email you@example.com` sends a test email and reports what happened to it.
 
-**Try it before you install.** [try.axlewp.com/staging-guard](https://try.axlewp.com/staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
+**Try it before you install.** [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
 
 Part of [Axle](https://axlewp.com/), a family of free plugins for running WordPress sites safely.
 
@@ -72,7 +74,7 @@ Part of [Axle](https://axlewp.com/), a family of free plugins for running WordPr
 
 = Does it work with SMTP plugins? =
 
-Yes, for plugins that send through WordPress's own `wp_mail()` function, which is most of them. A few plugins replace `wp_mail()` entirely. Staging Guard detects this and shows a warning on its settings screen, because it cannot intercept those emails.
+Yes, for plugins that send through WordPress's own `wp_mail()` function, which is most of them. A few plugins replace `wp_mail()` entirely. Axle Staging Guard detects this and shows a warning on its settings screen, because it cannot intercept those emails.
 
 = Will blocked emails break password resets on staging? =
 
@@ -84,11 +86,11 @@ The production lock is still stored, and the live domain still matches it, so th
 
 = Can I change how the environment is detected? =
 
-Use the `staging_guard_environment` filter. It receives an array with `type` (production, staging, development or local) and `source`.
+Use the `axle_staging_guard_environment` filter. It receives an array with `type` (production, staging, development or local) and `source`.
 
 = What if the live site moves to a new domain? =
 
-Then the production lock no longer matches, and the live site would count as staging. Staging Guard warns about this on every admin screen and in Site Health, so it does not go unnoticed. Lock the new domain from Tools > Staging Guard, or list every live domain in `STAGING_GUARD_PRODUCTION_HOSTS` so a move never trips it. `www.` and the bare domain already count as the same.
+Then the production lock no longer matches, and the live site would count as staging. Axle Staging Guard warns about this on every admin screen and in Site Health, so it does not go unnoticed. Lock the new domain from Tools > Axle Staging Guard, or list every live domain in `AXLE_STAGING_GUARD_PRODUCTION_HOSTS` so a move never trips it. `www.` and the bare domain already count as the same.
 
 = Does the email log keep personal data? =
 
@@ -97,7 +99,7 @@ It keeps who an email was for and its subject, and the message only if you turn 
 == Screenshots ==
 
 1. The coloured admin bar on a staging copy.
-2. Tools > Staging Guard with the email log.
+2. Tools > Axle Staging Guard with the email log.
 
 == Changelog ==
 

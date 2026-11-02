@@ -60,13 +60,13 @@ final class EnvironmentTest extends TestCase {
 	public function test_colours_and_labels_can_be_filtered_but_stay_valid(): void {
 		$environment = $this->environment( Environment::hash( 'live.example.com' ) );
 
-		Filters\expectApplied( 'staging_guard_colours' )->once()->andReturn( array( 'staging' => '#6b21a8' ) );
+		Filters\expectApplied( 'axle_staging_guard_colours' )->once()->andReturn( array( 'staging' => '#6b21a8' ) );
 		$this->assertSame( '#6b21a8', $environment->colour() );
 
-		Filters\expectApplied( 'staging_guard_colours' )->once()->andReturn( array( 'staging' => 'red; background: url(x)' ) );
+		Filters\expectApplied( 'axle_staging_guard_colours' )->once()->andReturn( array( 'staging' => 'red; background: url(x)' ) );
 		$this->assertSame( '#b34700', $environment->colour(), 'Anything but a hex colour falls back.' );
 
-		Filters\expectApplied( 'staging_guard_environment_label' )->andReturn( 'UAT' );
+		Filters\expectApplied( 'axle_staging_guard_environment_label' )->andReturn( 'UAT' );
 		$this->assertSame( 'UAT', $environment->label() );
 	}
 
@@ -80,7 +80,7 @@ final class EnvironmentTest extends TestCase {
 	}
 
 	public function test_production_hosts_decide_before_the_lock(): void {
-		Filters\expectApplied( 'staging_guard_production_hosts' )->andReturn( array( ' Shop.Example.com ', 'example.com' ) );
+		Filters\expectApplied( 'axle_staging_guard_production_hosts' )->andReturn( array( ' Shop.Example.com ', 'example.com' ) );
 
 		// The lock points elsewhere, but www.example.com matches example.com in the hosts list.
 		$environment = $this->environment( Environment::hash( 'live.example.org' ) );
@@ -91,7 +91,7 @@ final class EnvironmentTest extends TestCase {
 	}
 
 	public function test_a_domain_outside_the_production_hosts_is_staging(): void {
-		Filters\expectApplied( 'staging_guard_production_hosts' )->andReturn( array( 'shop.example.com' ) );
+		Filters\expectApplied( 'axle_staging_guard_production_hosts' )->andReturn( array( 'shop.example.com' ) );
 
 		$environment = $this->environment();
 		$this->assertSame( 'staging', $environment->type() );

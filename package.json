@@ -1,5 +1,5 @@
 {
-  "name": "staging-guard",
+  "name": "axle-staging-guard",
   "private": true,
   "description": "Stops staging copies of a WordPress site from emailing real people or getting indexed.",
   "license": "GPL-2.0-or-later",

@@ -1,5 +1,5 @@
 name: Feature request
-description: An idea that would make Staging Guard more useful.
+description: An idea that would make Axle Staging Guard more useful.
 labels: [enhancement]
 body:
   - type: textarea

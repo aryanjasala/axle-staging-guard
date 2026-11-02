@@ -4,35 +4,35 @@
   "exclude": [],
   "screens": [
     {
-      "name": "Tools > Staging Guard on a site with no production address yet",
-      "url": "/wp-admin/tools.php?page=staging-guard"
+      "name": "Tools > Axle Staging Guard on a site with no production address yet",
+      "url": "/wp-admin/tools.php?page=axle-staging-guard"
     },
     {
-      "name": "Tools > Staging Guard on a staging copy, with the email log and one email open",
+      "name": "Tools > Axle Staging Guard on a staging copy, with the email log and one email open",
       "setup": [
-        ["eval", "update_option( 'staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ), 'allowlist' => array( '@youragency.com' ), 'keep_bodies' => true ), false );"],
+        ["eval", "update_option( 'axle_staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ), 'allowlist' => array( '@youragency.com' ), 'keep_bodies' => true ), false );"],
         ["eval", "wp_mail( 'sam.lee@example.net', 'Your order #1042 has shipped', 'Your order is on its way.' ); wp_mail( array( 'priya@example.org', 'dev@youragency.com' ), 'New comment', 'A new comment is waiting for approval.' );"]
       ],
-      "url": "/wp-admin/tools.php?page=staging-guard",
-      "steps": [{ "click": ".sg-log__row summary" }, { "waitFor": ".sg-log__body" }],
+      "url": "/wp-admin/tools.php?page=axle-staging-guard",
+      "steps": [{ "click": ".asg-log__row summary" }, { "waitFor": ".asg-log__body" }],
       "cleanup": [
-        ["option", "delete", "staging_guard_settings"],
-        ["eval", "foreach ( get_posts( array( 'post_type' => 'staging_guard_mail', 'post_status' => 'any', 'numberposts' => 500, 'fields' => 'ids' ) ) as $id ) { wp_delete_post( $id, true ); }"]
+        ["option", "delete", "axle_staging_guard_settings"],
+        ["eval", "foreach ( get_posts( array( 'post_type' => 'axle_sg_mail', 'post_status' => 'any', 'numberposts' => 500, 'fields' => 'ids' ) ) as $id ) { wp_delete_post( $id, true ); }"]
       ]
     },
     {
       "name": "Dashboard on a staging copy: lock notice and toolbar badge",
-      "setup": [["eval", "update_option( 'staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ) ), false ); delete_user_meta( 1, 'staging_guard_lock_notice_dismissed' );"]],
+      "setup": [["eval", "update_option( 'axle_staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ) ), false ); delete_user_meta( 1, 'axle_staging_guard_lock_notice_dismissed' );"]],
       "url": "/wp-admin/index.php",
-      "include": [".sg-lock-notice", "#wp-admin-bar-staging-guard"],
-      "cleanup": [["option", "delete", "staging_guard_settings"]]
+      "include": [".asg-lock-notice", "#wp-admin-bar-axle-staging-guard"],
+      "cleanup": [["option", "delete", "axle_staging_guard_settings"]]
     },
     {
       "name": "Front end toolbar badge on a staging copy",
-      "setup": [["eval", "update_option( 'staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ) ), false );"]],
+      "setup": [["eval", "update_option( 'axle_staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ) ), false );"]],
       "url": "/",
-      "include": ["#wp-admin-bar-staging-guard"],
-      "cleanup": [["option", "delete", "staging_guard_settings"]]
+      "include": ["#wp-admin-bar-axle-staging-guard"],
+      "cleanup": [["option", "delete", "axle_staging_guard_settings"]]
     }
   ],
   "skip": {}

@@ -84,13 +84,13 @@ jobs:
             echo
             echo "### Install"
             echo
-            echo "Download \`staging-guard.zip\` below and upload it under **Plugins > Add New Plugin > Upload Plugin**, or run:"
+            echo "Download \`axle-staging-guard.zip\` below and upload it under **Plugins > Add New Plugin > Upload Plugin**, or run:"
             echo
             echo '```'
-            echo "wp plugin install https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/staging-guard.zip --activate"
+            echo "wp plugin install https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/axle-staging-guard.zip --activate"
             echo '```'
             echo
-            echo "SHA-256 of the zip: \`$(sha256sum dist/staging-guard.zip | cut -d ' ' -f 1)\`"
+            echo "SHA-256 of the zip: \`$(sha256sum dist/axle-staging-guard.zip | cut -d ' ' -f 1)\`"
             if [ -n "$previous" ]; then
               echo
               echo "**Full diff:** https://github.com/$GITHUB_REPOSITORY/compare/$previous...v$VERSION"
@@ -104,9 +104,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "v$VERSION" "dist/staging-guard.zip" \
+          gh release create "v$VERSION" "dist/axle-staging-guard.zip" \
             --target "$GITHUB_SHA" \
-            --title "Staging Guard $VERSION" \
+            --title "Axle Staging Guard $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md"
 
   wordpress-org:
@@ -124,5 +124,5 @@ jobs:
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
-          SLUG: staging-guard
+          SLUG: axle-staging-guard
           VERSION: ${{ needs.release.outputs.version }}

@@ -24,18 +24,18 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Log implements Service {
 
-	public const POST_TYPE  = 'staging_guard_mail';
-	public const PURGE_HOOK = 'staging_guard_purge_log';
+	public const POST_TYPE  = 'axle_sg_mail';
+	public const PURGE_HOOK = 'axle_staging_guard_purge_log';
 
 	/**
 	 * Option that held the log in version 1.1.0 and earlier.
 	 */
-	public const LEGACY_OPTION = 'staging_guard_mail_log';
+	public const LEGACY_OPTION = 'axle_staging_guard_mail_log';
 
-	private const META_TO        = '_staging_guard_to';
-	private const META_DELIVERED = '_staging_guard_delivered';
-	private const META_ACTION    = '_staging_guard_action';
-	private const META_BODY      = '_staging_guard_body';
+	private const META_TO        = '_axle_staging_guard_to';
+	private const META_DELIVERED = '_axle_staging_guard_delivered';
+	private const META_ACTION    = '_axle_staging_guard_action';
+	private const META_BODY      = '_axle_staging_guard_body';
 
 	private const SHOWN       = 50;
 	private const MAX_ENTRIES = 1000;
@@ -77,7 +77,7 @@ final class Log implements Service {
 		register_post_type(
 			self::POST_TYPE,
 			array(
-				'label'            => __( 'Stopped email', 'staging-guard' ),
+				'label'            => __( 'Stopped email', 'axle-staging-guard' ),
 				'public'           => false,
 				'show_ui'          => false,
 				'rewrite'          => false,
@@ -109,14 +109,14 @@ final class Log implements Service {
 	 * @return int
 	 */
 	public function days(): int {
-		$days = defined( 'STAGING_GUARD_LOG_DAYS' ) ? (int) STAGING_GUARD_LOG_DAYS : 7;
+		$days = defined( 'AXLE_STAGING_GUARD_LOG_DAYS' ) ? (int) AXLE_STAGING_GUARD_LOG_DAYS : 7;
 
 		/**
 		 * Filters how many days stopped emails stay in the log.
 		 *
-		 * @param int $days Days. Default 7, or STAGING_GUARD_LOG_DAYS.
+		 * @param int $days Days. Default 7, or AXLE_STAGING_GUARD_LOG_DAYS.
 		 */
-		return max( 1, (int) apply_filters( 'staging_guard_log_days', $days ) );
+		return max( 1, (int) apply_filters( 'axle_staging_guard_log_days', $days ) );
 	}
 
 	/**
@@ -130,7 +130,7 @@ final class Log implements Service {
 		 *
 		 * @param int $size Default 1000.
 		 */
-		return max( 1, (int) apply_filters( 'staging_guard_log_size', self::MAX_ENTRIES ) );
+		return max( 1, (int) apply_filters( 'axle_staging_guard_log_size', self::MAX_ENTRIES ) );
 	}
 
 	/**
@@ -176,7 +176,7 @@ final class Log implements Service {
 	 * @return bool
 	 */
 	public function keeps_bodies(): bool {
-		return defined( 'STAGING_GUARD_KEEP_BODIES' ) ? (bool) STAGING_GUARD_KEEP_BODIES : (bool) $this->settings->get( 'keep_bodies' );
+		return defined( 'AXLE_STAGING_GUARD_KEEP_BODIES' ) ? (bool) AXLE_STAGING_GUARD_KEEP_BODIES : (bool) $this->settings->get( 'keep_bodies' );
 	}
 
 	/**
@@ -293,8 +293,8 @@ final class Log implements Service {
 	 * @return array
 	 */
 	public function add_exporter( array $exporters ): array {
-		$exporters['staging-guard'] = array(
-			'exporter_friendly_name' => __( 'Staging Guard stopped email', 'staging-guard' ),
+		$exporters['axle-staging-guard'] = array(
+			'exporter_friendly_name' => __( 'Axle Staging Guard stopped email', 'axle-staging-guard' ),
 			'callback'               => array( $this, 'export' ),
 		);
 
@@ -308,8 +308,8 @@ final class Log implements Service {
 	 * @return array
 	 */
 	public function add_eraser( array $erasers ): array {
-		$erasers['staging-guard'] = array(
-			'eraser_friendly_name' => __( 'Staging Guard stopped email', 'staging-guard' ),
+		$erasers['axle-staging-guard'] = array(
+			'eraser_friendly_name' => __( 'Axle Staging Guard stopped email', 'axle-staging-guard' ),
 			'callback'             => array( $this, 'erase' ),
 		);
 
@@ -331,33 +331,33 @@ final class Log implements Service {
 			$entry  = $this->entry( get_post( $id ) );
 			$fields = array(
 				array(
-					'name'  => __( 'Date', 'staging-guard' ),
+					'name'  => __( 'Date', 'axle-staging-guard' ),
 					'value' => gmdate( 'Y-m-d H:i:s', $entry['time'] ),
 				),
 				array(
-					'name'  => __( 'To', 'staging-guard' ),
+					'name'  => __( 'To', 'axle-staging-guard' ),
 					'value' => $entry['to'],
 				),
 				array(
-					'name'  => __( 'Subject', 'staging-guard' ),
+					'name'  => __( 'Subject', 'axle-staging-guard' ),
 					'value' => $entry['subject'],
 				),
 				array(
-					'name'  => __( 'What happened', 'staging-guard' ),
+					'name'  => __( 'What happened', 'axle-staging-guard' ),
 					'value' => $entry['action'],
 				),
 			);
 			if ( '' !== $entry['body'] ) {
 				$fields[] = array(
-					'name'  => __( 'Message', 'staging-guard' ),
+					'name'  => __( 'Message', 'axle-staging-guard' ),
 					'value' => $entry['body'],
 				);
 			}
 
 			$data[] = array(
-				'group_id'    => 'staging-guard-mail',
-				'group_label' => __( 'Email stopped on a staging copy', 'staging-guard' ),
-				'item_id'     => 'staging-guard-mail-' . $id,
+				'group_id'    => 'axle-staging-guard-mail',
+				'group_label' => __( 'Email stopped on a staging copy', 'axle-staging-guard' ),
+				'item_id'     => 'axle-staging-guard-mail-' . $id,
 				'data'        => $fields,
 			);
 		}
@@ -398,15 +398,15 @@ final class Log implements Service {
 		}
 
 		wp_add_privacy_policy_content(
-			__( 'Staging Guard', 'staging-guard' ),
+			__( 'Axle Staging Guard', 'axle-staging-guard' ),
 			'<p>' . esc_html(
 				sprintf(
 					/* translators: %d: number of days. */
 					_n(
-						'On staging and development copies of this site, Staging Guard stops outgoing email and keeps a log of it: who it was for, the subject and, if a site administrator turns it on, the message. Entries are deleted after %d day. The live site keeps no such log.',
-						'On staging and development copies of this site, Staging Guard stops outgoing email and keeps a log of it: who it was for, the subject and, if a site administrator turns it on, the message. Entries are deleted after %d days. The live site keeps no such log.',
+						'On staging and development copies of this site, Axle Staging Guard stops outgoing email and keeps a log of it: who it was for, the subject and, if a site administrator turns it on, the message. Entries are deleted after %d day. The live site keeps no such log.',
+						'On staging and development copies of this site, Axle Staging Guard stops outgoing email and keeps a log of it: who it was for, the subject and, if a site administrator turns it on, the message. Entries are deleted after %d days. The live site keeps no such log.',
 						$this->days(),
-						'staging-guard'
+						'axle-staging-guard'
 					),
 					$this->days()
 				)

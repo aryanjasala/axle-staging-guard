@@ -13,14 +13,14 @@ use AryanX\Axle\StagingGuard\Mail\Guard;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers Staging Guard's abilities on WordPress 6.9 and later.
+ * Registers Axle Staging Guard's abilities on WordPress 6.9 and later.
  *
  * The most useful one for an agent is get-environment: "is this the live site,
  * and what happens to email here?", asked before doing anything risky.
  */
 final class Abilities implements Service {
 
-	public const CATEGORY = 'staging-guard';
+	public const CATEGORY = 'axle-staging-guard';
 
 	/**
 	 * Saved settings.
@@ -69,7 +69,7 @@ final class Abilities implements Service {
 	}
 
 	/**
-	 * Registers the Staging Guard category.
+	 * Registers the Axle Staging Guard category.
 	 */
 	public function register_category(): void {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
@@ -79,8 +79,8 @@ final class Abilities implements Service {
 		wp_register_ability_category(
 			self::CATEGORY,
 			array(
-				'label'       => __( 'Staging Guard', 'staging-guard' ),
-				'description' => __( 'Which environment this copy of the site is, and what it does with email and search engines.', 'staging-guard' ),
+				'label'       => __( 'Axle Staging Guard', 'axle-staging-guard' ),
+				'description' => __( 'Which environment this copy of the site is, and what it does with email and search engines.', 'axle-staging-guard' ),
 			)
 		);
 	}
@@ -95,8 +95,8 @@ final class Abilities implements Service {
 
 		$this->ability(
 			'get-environment',
-			__( 'Get environment', 'staging-guard' ),
-			__( 'Whether this copy of the site is production, staging, development or local, how that was decided, and what happens to email and search engines here. Check this before sending email, importing data or changing settings.', 'staging-guard' ),
+			__( 'Get environment', 'axle-staging-guard' ),
+			__( 'Whether this copy of the site is production, staging, development or local, how that was decided, and what happens to email and search engines here. Check this before sending email, importing data or changing settings.', 'axle-staging-guard' ),
 			array(),
 			array(
 				'type'       => 'object',
@@ -132,8 +132,8 @@ final class Abilities implements Service {
 
 		$this->ability(
 			'get-mail-log',
-			__( 'List stopped email', 'staging-guard' ),
-			__( 'Email this copy blocked or redirected, newest first: recipients, subject and what happened. Bodies only when the site keeps them.', 'staging-guard' ),
+			__( 'List stopped email', 'axle-staging-guard' ),
+			__( 'Email this copy blocked or redirected, newest first: recipients, subject and what happened. Bodies only when the site keeps them.', 'axle-staging-guard' ),
 			array(
 				'type'                 => 'object',
 				'properties'           => array(
@@ -174,8 +174,8 @@ final class Abilities implements Service {
 
 		$this->ability(
 			'send-test-email',
-			__( 'Send a test email', 'staging-guard' ),
-			__( 'Sends a short test email and reports what Staging Guard did with it: blocked, redirected, partly blocked, sent or failed. On the live site it really sends.', 'staging-guard' ),
+			__( 'Send a test email', 'axle-staging-guard' ),
+			__( 'Sends a short test email and reports what Axle Staging Guard did with it: blocked, redirected, partly blocked, sent or failed. On the live site it really sends.', 'axle-staging-guard' ),
 			array(
 				'type'                 => 'object',
 				'properties'           => array(
@@ -222,7 +222,7 @@ final class Abilities implements Service {
 			'source'       => $this->environment->source(),
 			'explanation'  => $this->environment->explain(),
 			'email'        => $guarded ? (string) $policy['mode'] : 'allow',
-			// Where redirected email goes is for people who manage Staging Guard only.
+			// Where redirected email goes is for people who manage Axle Staging Guard only.
 			'email_detail' => $guarded && current_user_can( SettingsPage::capability() ) ? $this->mail->describe() : '',
 			'noindex'      => $guarded && (bool) $this->settings->get( 'noindex' ),
 		);
@@ -261,14 +261,14 @@ final class Abilities implements Service {
 	public function send_test_email( $input = null ) {
 		$to = sanitize_email( (string) ( ( (array) $input )['to'] ?? '' ) );
 		if ( ! is_email( $to ) ) {
-			return new \WP_Error( 'staging_guard_invalid_email', __( 'That is not a valid email address.', 'staging-guard' ) );
+			return new \WP_Error( 'axle_staging_guard_invalid_email', __( 'That is not a valid email address.', 'axle-staging-guard' ) );
 		}
 
 		return array( 'result' => $this->mail->send_test( $to ) );
 	}
 
 	/**
-	 * Registers one ability in the Staging Guard category.
+	 * Registers one ability in the Axle Staging Guard category.
 	 *
 	 * @param string   $name        Name without the namespace.
 	 * @param string   $label       Label.

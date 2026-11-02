@@ -62,18 +62,18 @@ final class AdminBar implements Service {
 	public function add_node( \WP_Admin_Bar $admin_bar ): void {
 		$admin_bar->add_node(
 			array(
-				'id'    => 'staging-guard',
+				'id'    => 'axle-staging-guard',
 				'title' => esc_html( $this->environment->label() ),
 				'href'  => current_user_can( SettingsPage::capability() ) ? admin_url( 'tools.php?page=' . SettingsPage::SLUG ) : false,
 				'meta'  => array(
-					// Only people who manage Staging Guard see where email goes.
+					// Only people who manage Axle Staging Guard see where email goes.
 					'title' => current_user_can( SettingsPage::capability() )
 						? sprintf(
 							/* translators: %s: what happens to outgoing email, e.g. "Blocked". */
-							__( 'Not the live site. Email: %s.', 'staging-guard' ),
+							__( 'Not the live site. Email: %s.', 'axle-staging-guard' ),
 							$this->mail->describe()
 						)
-						: __( 'Not the live site.', 'staging-guard' ),
+						: __( 'Not the live site.', 'axle-staging-guard' ),
 				),
 			)
 		);
@@ -90,7 +90,7 @@ final class AdminBar implements Service {
 		wp_add_inline_style(
 			'admin-bar',
 			sprintf(
-				'html #wpadminbar{background:%1$s}#wpadminbar #wp-admin-bar-staging-guard>.ab-item{font-weight:600;letter-spacing:.06em;background:rgba(0,0,0,.25)}',
+				'html #wpadminbar{background:%1$s}#wpadminbar #wp-admin-bar-axle-staging-guard>.ab-item{font-weight:600;letter-spacing:.06em;background:rgba(0,0,0,.25)}',
 				esc_attr( $this->environment->colour() )
 			)
 		);
