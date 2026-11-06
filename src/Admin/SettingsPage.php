@@ -118,7 +118,8 @@ final class SettingsPage implements Service {
 	 * Screen styles.
 	 */
 	public function enqueue_styles(): void {
-		wp_enqueue_style( 'axle-staging-guard-admin', plugins_url( 'assets/admin.css', PLUGIN_FILE ), array(), VERSION );
+		AxleUi::enqueue();
+		wp_enqueue_style( 'axle-staging-guard-admin', plugins_url( 'assets/admin.css', PLUGIN_FILE ), array( AxleUi::HANDLE ), VERSION );
 	}
 
 	/**
@@ -129,24 +130,34 @@ final class SettingsPage implements Service {
 		$policy  = $this->mail->policy();
 		$log     = $this->mail->log()->all();
 		$today   = $this->mail->log()->count_since( time() - DAY_IN_SECONDS );
+		$tones   = array(
+			'production'  => 'neutral',
+			'staging'     => 'warning',
+			'development' => 'info',
+			'local'       => 'good',
+		);
+		$tone    = $tones[ $this->environment->type() ] ?? 'neutral';
+		$mail_on = $guarded && 'allow' !== $policy['mode'];
+		$hide_on = $guarded && $this->settings->get( 'noindex' );
 		?>
-		<div class="wrap asg-page">
-			<h1 class="asg-title">
-				<?php esc_html_e( 'Axle Staging Guard', 'axle-staging-guard' ); ?>
-				<span class="asg-pill" style="background:<?php echo esc_attr( $this->environment->colour() ); ?>"><?php echo esc_html( $this->environment->label() ); ?></span>
-			</h1>
+		<div class="wrap axle-ui asg-page">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Staging Guard', 'axle-staging-guard' ); ?></h1>
+			<span class="axle-status"><span class="axle-badge axle-badge--<?php echo esc_attr( $tone ); ?>"><?php echo esc_html( $this->environment->label() ); ?></span></span>
+			<hr class="wp-header-end">
 
 			<?php $this->render_notices(); ?>
 
-			<div class="asg-cards">
-				<div class="asg-card <?php echo $guarded ? 'is-on' : 'is-off'; ?>">
-					<h2><?php esc_html_e( 'This copy', 'axle-staging-guard' ); ?></h2>
-					<p class="asg-card__value"><?php echo esc_html( $this->environment->label() ); ?> &middot; <?php echo $guarded ? esc_html__( 'guards on', 'axle-staging-guard' ) : esc_html__( 'guards off', 'axle-staging-guard' ); ?></p>
+			<p class="axle-intro"><?php esc_html_e( 'On every copy of your site that is not the live one, this stops email from reaching real people, asks search engines to stay away and labels the admin bar. On the live site it does nothing.', 'axle-staging-guard' ); ?></p>
+
+			<div class="axle-grid asg-states">
+				<section class="axle-card asg-state">
+					<h2 class="axle-card__title"><?php esc_html_e( 'This copy', 'axle-staging-guard' ); ?></h2>
+					<p><span class="axle-badge axle-badge--<?php echo $guarded ? 'good' : 'neutral'; ?>"><?php echo $guarded ? esc_html__( 'Guards on', 'axle-staging-guard' ) : esc_html__( 'Guards off', 'axle-staging-guard' ); ?></span></p>
 					<p><?php echo esc_html( $this->environment->explain() ); ?></p>
-				</div>
-				<div class="asg-card <?php echo ( $guarded && 'allow' !== $policy['mode'] ) ? 'is-on' : 'is-off'; ?>">
-					<h2><?php esc_html_e( 'Email', 'axle-staging-guard' ); ?></h2>
-					<p class="asg-card__value"><?php echo esc_html( $guarded ? $this->mail->describe() : __( 'Sent normally (live site)', 'axle-staging-guard' ) ); ?></p>
+				</section>
+				<section class="axle-card asg-state">
+					<h2 class="axle-card__title"><?php esc_html_e( 'Email', 'axle-staging-guard' ); ?></h2>
+					<p><span class="axle-badge axle-badge--<?php echo $mail_on ? 'good' : ( $guarded ? 'warning' : 'neutral' ); ?>"><?php echo esc_html( $guarded ? $this->mail->describe() : __( 'Sent normally (live site)', 'axle-staging-guard' ) ); ?></span></p>
 					<p>
 						<?php
 						echo esc_html(
@@ -158,22 +169,24 @@ final class SettingsPage implements Service {
 						);
 						?>
 					</p>
-				</div>
-				<div class="asg-card <?php echo ( $guarded && $this->settings->get( 'noindex' ) ) ? 'is-on' : 'is-off'; ?>">
-					<h2><?php esc_html_e( 'Search engines', 'axle-staging-guard' ); ?></h2>
-					<p class="asg-card__value">
-						<?php
-						if ( ! $guarded ) {
-							esc_html_e( 'Not changed (live site)', 'axle-staging-guard' );
-						} elseif ( $this->settings->get( 'noindex' ) ) {
-							esc_html_e( 'Hidden', 'axle-staging-guard' );
-						} else {
-							esc_html_e( 'Not hidden', 'axle-staging-guard' );
-						}
-						?>
+				</section>
+				<section class="axle-card asg-state">
+					<h2 class="axle-card__title"><?php esc_html_e( 'Search engines', 'axle-staging-guard' ); ?></h2>
+					<p>
+						<span class="axle-badge axle-badge--<?php echo $hide_on ? 'good' : ( $guarded ? 'warning' : 'neutral' ); ?>">
+							<?php
+							if ( ! $guarded ) {
+								esc_html_e( 'Not changed (live site)', 'axle-staging-guard' );
+							} elseif ( $this->settings->get( 'noindex' ) ) {
+								esc_html_e( 'Hidden', 'axle-staging-guard' );
+							} else {
+								esc_html_e( 'Not hidden', 'axle-staging-guard' );
+							}
+							?>
+						</span>
 					</p>
 					<p><?php esc_html_e( 'Noindex header and meta tag, a blocking robots.txt, and no sitemap.', 'axle-staging-guard' ); ?></p>
-				</div>
+				</section>
 			</div>
 
 			<?php if ( $this->mail->wp_mail_is_replaced() ) : ?>
@@ -181,29 +194,29 @@ final class SettingsPage implements Service {
 			<?php endif; ?>
 
 			<div class="asg-columns">
-				<div class="asg-panel">
-					<h2><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
+				<section class="axle-card">
+					<h2 class="axle-card__title"><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
 					<?php $this->render_settings_form( $policy ); ?>
-				</div>
+				</section>
 
 				<div class="asg-side">
 					<?php if ( 'constant' !== $this->environment->source() ) : ?>
-						<div class="asg-panel">
-							<h2><?php esc_html_e( 'Production lock', 'axle-staging-guard' ); ?></h2>
+						<section class="axle-card">
+							<h2 class="axle-card__title"><?php esc_html_e( 'Production lock', 'axle-staging-guard' ); ?></h2>
 							<p><?php esc_html_e( 'Set this once on the live site. Every copy of its database on another domain is then treated as staging, with no change to wp-config.php.', 'axle-staging-guard' ); ?></p>
 							<?php
 							if ( $this->environment->is_locked() ) {
 								$this->render_button( 'unlock', __( 'Remove production lock', 'axle-staging-guard' ) );
 							} else {
 								/* translators: %s: domain name. */
-								$this->render_button( 'lock', sprintf( __( 'This is the live site: lock to %s', 'axle-staging-guard' ), $this->environment->domain() ), 'primary' );
+								$this->render_button( 'lock', sprintf( __( 'This is the live site: lock to %s', 'axle-staging-guard' ), $this->environment->domain() ) );
 							}
 							?>
-						</div>
+						</section>
 					<?php endif; ?>
 
-					<div class="asg-panel">
-						<h2><?php esc_html_e( 'Send a test email', 'axle-staging-guard' ); ?></h2>
+					<section class="axle-card">
+						<h2 class="axle-card__title"><?php esc_html_e( 'Send a test email', 'axle-staging-guard' ); ?></h2>
 						<p><?php echo esc_html( $guarded ? __( 'See what happens to email from this copy.', 'axle-staging-guard' ) : __( 'This is the live site, so the test email is really sent.', 'axle-staging-guard' ) ); ?></p>
 						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
 							<?php wp_nonce_field( self::ACTION ); ?>
@@ -213,11 +226,13 @@ final class SettingsPage implements Service {
 							<input type="email" id="asg-test-to" name="test_to" class="regular-text" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" required>
 							<?php submit_button( __( 'Send', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
 						</form>
-					</div>
+					</section>
 				</div>
 			</div>
 
 			<?php $this->render_log( $log ); ?>
+
+			<?php AxleUi::footer(); ?>
 		</div>
 		<?php
 	}
@@ -301,18 +316,18 @@ final class SettingsPage implements Service {
 			'redirected'     => __( 'Redirected', 'axle-staging-guard' ),
 			'partly_blocked' => __( 'Partly blocked', 'axle-staging-guard' ),
 		);
+		$tones   = array(
+			'blocked'        => 'error',
+			'redirected'     => 'info',
+			'partly_blocked' => 'warning',
+		);
 		?>
-		<div class="asg-panel asg-log">
-			<div class="asg-log__head">
-				<h2><?php esc_html_e( 'Stopped email', 'axle-staging-guard' ); ?></h2>
-				<?php
-				if ( $log ) {
-					$this->render_button( 'clear_log', __( 'Clear list', 'axle-staging-guard' ), 'link-delete' );
-				}
-				?>
-			</div>
+		<section class="axle-card asg-log">
+			<h2 class="axle-card__title"><?php esc_html_e( 'Stopped email', 'axle-staging-guard' ); ?></h2>
 			<?php if ( ! $log ) : ?>
-				<p><?php esc_html_e( 'No email has been stopped yet.', 'axle-staging-guard' ); ?></p>
+				<div class="axle-empty">
+					<p><?php esc_html_e( 'No email has been stopped yet. Email that this copy blocks or redirects is listed here.', 'axle-staging-guard' ); ?></p>
+				</div>
 			<?php else : ?>
 				<table class="widefat striped">
 					<thead>
@@ -326,7 +341,14 @@ final class SettingsPage implements Service {
 					<tbody>
 						<?php foreach ( $log as $entry ) : ?>
 							<tr class="asg-log__row">
-								<td><?php echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $entry['time'] ) ); ?></td>
+								<td>
+									<time datetime="<?php echo esc_attr( gmdate( 'c', (int) $entry['time'] ) ); ?>" title="<?php echo esc_attr( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $entry['time'] ) ); ?>">
+										<?php
+										/* translators: %s: time ago, e.g. "5 minutes". */
+										echo esc_html( sprintf( __( '%s ago', 'axle-staging-guard' ), human_time_diff( (int) $entry['time'] ) ) );
+										?>
+									</time>
+								</td>
 								<td><?php echo esc_html( $entry['to'] ); ?></td>
 								<td>
 									<?php if ( ! empty( $entry['body'] ) ) : ?>
@@ -339,7 +361,7 @@ final class SettingsPage implements Service {
 									<?php endif; ?>
 								</td>
 								<td>
-									<span class="asg-badge asg-badge--<?php echo esc_attr( $entry['action'] ); ?>"><?php echo esc_html( $actions[ $entry['action'] ] ?? $entry['action'] ); ?></span>
+									<span class="axle-badge axle-badge--<?php echo esc_attr( $tones[ $entry['action'] ] ?? 'neutral' ); ?>"><?php echo esc_html( $actions[ $entry['action'] ] ?? $entry['action'] ); ?></span>
 									<?php if ( ! empty( $entry['delivered'] ) ) : ?>
 										<br><small>
 											<?php
@@ -354,24 +376,33 @@ final class SettingsPage implements Service {
 					</tbody>
 				</table>
 			<?php endif; ?>
-		</div>
+		</section>
+
+		<?php if ( $log ) : ?>
+			<section class="axle-card axle-card--danger">
+				<h2 class="axle-card__title"><?php esc_html_e( 'Clear the email list', 'axle-staging-guard' ); ?></h2>
+				<p><?php esc_html_e( 'Removes every entry from the list above, including saved message bodies. The emails themselves are not affected. This cannot be undone.', 'axle-staging-guard' ); ?></p>
+				<?php $this->render_button( 'clear_log', __( 'Clear list', 'axle-staging-guard' ), 'danger', __( 'Remove every entry from the stopped email list? This cannot be undone.', 'axle-staging-guard' ) ); ?>
+			</section>
+		<?php endif; ?>
 		<?php
 	}
 
 	/**
 	 * Prints a one-button form that runs a task.
 	 *
-	 * @param string $task  Task name.
-	 * @param string $label Button text.
-	 * @param string $style primary, secondary or link-delete.
+	 * @param string $task    Task name.
+	 * @param string $label   Button text.
+	 * @param string $style   secondary or danger.
+	 * @param string $confirm Question to ask first, for actions that cannot be undone.
 	 */
-	private function render_button( string $task, string $label, string $style = 'secondary' ): void {
+	private function render_button( string $task, string $label, string $style = 'secondary', string $confirm = '' ): void {
 		?>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-button-form">
 			<?php wp_nonce_field( self::ACTION ); ?>
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
 			<input type="hidden" name="task" value="<?php echo esc_attr( $task ); ?>">
-			<button type="submit" class="<?php echo esc_attr( 'link-delete' === $style ? 'button-link button-link-delete' : 'button button-' . $style ); ?>"><?php echo esc_html( $label ); ?></button>
+			<button type="submit" class="<?php echo esc_attr( 'danger' === $style ? 'button axle-button--danger' : 'button' ); ?>"<?php echo $confirm ? ' onclick="' . esc_attr( 'return window.confirm( ' . wp_json_encode( $confirm ) . ' );' ) . '"' : ''; ?>><?php echo esc_html( $label ); ?></button>
 		</form>
 		<?php
 	}
