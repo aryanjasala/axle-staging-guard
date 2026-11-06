@@ -1,5 +1,9 @@
 /* Layout that only this plugin needs. Components come from axle-ui.css. */
 
+.asg-states {
+	margin-bottom: 16px;
+}
+
 .asg-states .axle-badge {
 	white-space: normal;
 	overflow-wrap: anywhere;
