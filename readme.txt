@@ -35,7 +35,7 @@ Axle Staging Guard prevents all three, on every copy that is not the live site.
 
 Free and open source under the GPL. No pro version, no upsells, no ads in wp-admin, no tracking. And it stays that way.
 
-Part of Axle by AryanX, a family of plugins for running WordPress sites safely.
+Part of [Axle](https://axlewp.com/) by AryanX, a family of free plugins for running WordPress sites safely.
 
 = How it knows which copy is live =
 
@@ -67,8 +67,6 @@ Fix the email behaviour per environment, so a database copy cannot change it:
 * `wp axle-staging-guard test-email you@example.com` sends a test email and reports what happened to it.
 
 **Try it before you install.** [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
-
-Part of [Axle](https://axlewp.com/), a family of free plugins for running WordPress sites safely.
 
 == Frequently Asked Questions ==
 
