@@ -60,7 +60,7 @@
 
 .asg-log summary {
 	cursor: pointer;
-	color: var(--wp-admin-theme-color, #2271b1);
+	color: var(--wp-admin-theme-color-darker-10, #135e96);
 }
 
 /* The shared danger button text (#d63638) is 4.4:1 on core's button background before WordPress 7.0. */
