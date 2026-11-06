@@ -22,14 +22,14 @@ test( 'demo: a staging copy blocks, then redirects, its email', async ( { browse
 			await demo.start();
 			await demo.pause( 1500 );
 			await demo.click( page.locator( '#wp-admin-bar-axle-staging-guard > a' ), 300 );
-			await expect( page.locator( '.asg-pill' ) ).toHaveText( 'Staging' );
+			await expect( page.locator( '.axle-status .axle-badge' ) ).toHaveText( 'Staging' );
 			await demo.pause( 1500 );
 
 			// Email from a staging copy is stopped and logged.
 			await demo.type( page.locator( '#asg-test-to' ), 'customer@example.com' );
 			await demo.click( page.getByRole( 'button', { name: 'Send', exact: true } ), 300 );
 			await expect( page.locator( '.asg-test-result' ) ).toContainText( 'Test email blocked' );
-			await demo.moveTo( page.locator( '.asg-log__row' ).first().locator( '.asg-badge' ) );
+			await demo.moveTo( page.locator( '.asg-log__row' ).first().locator( '.axle-badge' ) );
 			await demo.pause( 1800 );
 
 			// Or sent to one test inbox instead.
@@ -39,13 +39,13 @@ test( 'demo: a staging copy blocks, then redirects, its email', async ( { browse
 			await demo.click( page.getByRole( 'button', { name: 'Save settings' } ), 300 );
 			await expect( page.locator( '.notice-success' ) ).toContainText( 'Settings saved' );
 			await page.evaluate( () => window.scrollTo( 0, 0 ) );
-			await demo.moveTo( page.locator( '.asg-card' ).nth( 1 ) );
+			await demo.moveTo( page.locator( '.asg-state' ).nth( 1 ) );
 			await demo.pause( 1200 );
 
 			await demo.type( page.locator( '#asg-test-to' ), 'customer@example.com' );
 			await demo.click( page.getByRole( 'button', { name: 'Send', exact: true } ), 300 );
-			await expect( page.locator( '.asg-log__row' ).first().locator( '.asg-badge' ) ).toHaveText( 'Redirected' );
-			await demo.moveTo( page.locator( '.asg-log__row' ).first().locator( '.asg-badge' ) );
+			await expect( page.locator( '.asg-log__row' ).first().locator( '.axle-badge' ) ).toHaveText( 'Redirected' );
+			await demo.moveTo( page.locator( '.asg-log__row' ).first().locator( '.axle-badge' ) );
 			await demo.pause( 2000 );
 		} );
 	} finally {

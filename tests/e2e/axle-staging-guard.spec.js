@@ -24,8 +24,8 @@ test.describe( 'Axle Staging Guard', () => {
 
 	test( 'leaves an unmarked site alone and recommends the production lock', async ( { page, request } ) => {
 		await page.goto( PAGE );
-		await expect( page.locator( '.asg-pill' ) ).toHaveText( 'Production' );
-		await expect( page.locator( '.asg-card' ).first() ).toContainText( 'guards off' );
+		await expect( page.locator( '.axle-status .axle-badge' ) ).toHaveText( 'Production' );
+		await expect( page.locator( '.asg-state' ).first() ).toContainText( 'Guards off' );
 		await expect( page.locator( '#wp-admin-bar-axle-staging-guard' ) ).toHaveCount( 0 );
 
 		const home = await request.get( '/' );
@@ -39,8 +39,8 @@ test.describe( 'Axle Staging Guard', () => {
 		copiedToStaging();
 
 		await page.goto( PAGE );
-		await expect( page.locator( '.asg-pill' ) ).toHaveText( 'Staging' );
-		await expect( page.locator( '.asg-card' ).first() ).toContainText( 'production lock was set on a different domain' );
+		await expect( page.locator( '.axle-status .axle-badge' ) ).toHaveText( 'Staging' );
+		await expect( page.locator( '.asg-state' ).first() ).toContainText( 'production lock was set on a different domain' );
 		await expect( page.locator( '#wp-admin-bar-axle-staging-guard' ) ).toHaveText( 'Staging' );
 		await expect( page.locator( '#wpadminbar' ) ).toHaveCSS( 'background-color', 'rgb(179, 71, 0)' );
 		await expect( page ).toHaveTitle( /^\[Staging\] / );
@@ -79,6 +79,28 @@ test.describe( 'Axle Staging Guard', () => {
 		expect( detect( `array( 'shop.example.com' )` ) ).toEqual( { type: 'staging', source: 'hosts' } );
 	} );
 
+	test( 'clearing the stopped email list asks first', async ( { page } ) => {
+		copiedToStaging();
+		await page.goto( PAGE );
+		await page.locator( '#asg-test-to' ).fill( 'customer@example.com' );
+		await page.getByRole( 'button', { name: 'Send', exact: true } ).click();
+		await expect( page.locator( '.asg-log__row' ) ).toHaveCount( 1 );
+
+		// Clear list is in a danger card and asks first, saying it cannot be undone.
+		let asked = '';
+		page.once( 'dialog', ( dialog ) => {
+			asked = dialog.message();
+			dialog.dismiss();
+		} );
+		await page.locator( '.axle-card--danger' ).getByRole( 'button', { name: 'Clear list' } ).click();
+		expect( asked ).toContain( 'cannot be undone' );
+		expect( wp( 'axle-staging-guard', 'log', '--format=count' ) ).toBe( '1' );
+		page.once( 'dialog', ( dialog ) => dialog.accept() );
+		await page.locator( '.axle-card--danger' ).getByRole( 'button', { name: 'Clear list' } ).click();
+		await expect( page.locator( '.notice-success' ) ).toContainText( 'Email list cleared.' );
+		await expect( page.locator( '.axle-empty' ) ).toContainText( 'No email has been stopped yet' );
+	} );
+
 	test( 'blocks a test email and lists it', async ( { page } ) => {
 		copiedToStaging();
 		await page.goto( PAGE );
@@ -90,7 +112,7 @@ test.describe( 'Axle Staging Guard', () => {
 		const row = page.locator( '.asg-log__row' ).first();
 		await expect( row ).toContainText( 'customer@example.com' );
 		await expect( row ).toContainText( 'Axle Staging Guard test from' );
-		await expect( row.locator( '.asg-badge' ) ).toHaveText( 'Blocked' );
+		await expect( row.locator( '.axle-badge' ) ).toHaveText( 'Blocked' );
 
 		// The log takes part in Tools > Export / Erase Personal Data.
 		const privacy = ( tool ) =>
@@ -117,7 +139,7 @@ test.describe( 'Axle Staging Guard', () => {
 		await page.getByLabel( 'Keep message bodies in the log' ).check();
 		await page.getByRole( 'button', { name: 'Save settings' } ).click();
 		await expect( page.locator( '.notice-success' ) ).toContainText( 'Settings saved' );
-		await expect( page.locator( '.asg-card' ).nth( 1 ) ).toContainText( 'Redirected to qa@agency.test' );
+		await expect( page.locator( '.asg-state' ).nth( 1 ) ).toContainText( 'Redirected to qa@agency.test' );
 
 		// Capture what PHPMailer would really send.
 		const sent = JSON.parse(
@@ -138,7 +160,7 @@ test.describe( 'Axle Staging Guard', () => {
 
 		await page.reload();
 		const row = page.locator( '.asg-log__row' ).first();
-		await expect( row.locator( '.asg-badge' ) ).toHaveText( 'Redirected' );
+		await expect( row.locator( '.axle-badge' ) ).toHaveText( 'Redirected' );
 		await expect( row ).toContainText( 'Still delivered to dev@agency.test' );
 		await row.locator( 'summary' ).click();
 		await expect( row.locator( '.asg-log__body' ) ).toHaveText( 'Order body text' );
@@ -149,11 +171,11 @@ test.describe( 'Axle Staging Guard', () => {
 		await page.goto( PAGE );
 
 		await page.getByRole( 'button', { name: 'Remove production lock' } ).click();
-		await expect( page.locator( '.asg-pill' ) ).toHaveText( 'Production' );
+		await expect( page.locator( '.axle-status .axle-badge' ) ).toHaveText( 'Production' );
 
 		await page.getByRole( 'button', { name: /This is the live site: lock to localhost:\d+/ } ).click();
 		await expect( page.locator( '.notice-success' ) ).toContainText( 'Production is locked to this domain' );
-		await expect( page.locator( '.asg-card' ).first() ).toContainText( /matches this domain \(localhost:\d+\)/ );
+		await expect( page.locator( '.asg-state' ).first() ).toContainText( /matches this domain \(localhost:\d+\)/ );
 	} );
 
 	test( 'abilities: an agent can ask which copy this is, test email and read the log', async ( { rest } ) => {
