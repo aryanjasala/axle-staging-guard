@@ -3,7 +3,7 @@
 <h1 align="center">Axle Staging Guard</h1>
 
 <p align="center">
-  <a href="https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/aryanjasala/axle-staging-guard/main/blueprint.json"><img src="https://img.shields.io/badge/Try%20in-WordPress%20Playground-3858e9?logo=wordpress&logoColor=white" alt="Try in WordPress Playground"></a>
+  <a href="https://try.axlewp.com/axle-staging-guard"><img src="https://img.shields.io/badge/Try%20in-WordPress%20Playground-3858e9?logo=wordpress&logoColor=white" alt="Try in WordPress Playground"></a>
   <a href="https://github.com/aryanjasala/axle-staging-guard/releases/latest"><img src="https://img.shields.io/github/v/release/aryanjasala/axle-staging-guard?label=release&color=2271b1" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/WordPress-6.6%2B-3858e9?logo=wordpress&logoColor=white" alt="WordPress 6.6+">
   <img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?logo=php&logoColor=white" alt="PHP 7.4+">
@@ -24,18 +24,20 @@
 
 ---
 
-Every agency has a staging story: a copy of the live database goes to staging and emails every customer, Google indexes it, or someone spends an hour editing it thinking it was live. Axle Staging Guard prevents all three on every copy that is not production, and does nothing on the live site.
+Every agency has a staging story: a copy of the live database goes to staging and emails every customer, Google indexes it, or someone spends an hour editing it thinking it was live. Axle Staging Guard prevents all three on every copy that is not production, and does nothing on the live site. It can also stop the copy from calling payment gateways, CRMs and webhooks with live keys.
 
 > [!NOTE]
 > Free and open source under the GPL. No pro version, no upsells, no ads in wp-admin, no tracking. And it stays that way.
 >
-> Part of Axle by AryanX, a family of plugins for running WordPress sites safely.
+> Part of [Axle](https://axlewp.com/) by AryanX, a family of free plugins for running WordPress sites safely.
 
 ## Features
 
 - **Email**: blocked, or sent to one test address with the real recipients in the subject. Cc and Bcc stripped
 - **Always deliver to**: addresses and whole domains that still get email, so the team can test real flows
 - **Email log** of the last 50 stopped emails, with bodies only if you turn that on
+- **Outgoing API calls**: block everything except allowed hosts, or log only, for requests made through the WordPress HTTP API. A blocked call fails with a clear error, never a fake success
+- **Request list** with method, host, path, the plugin that made the call and how often, with secrets and query strings left out, and a **Test a URL** button
 - **Search engines**: `X-Robots-Tag` header, `noindex, nofollow` meta tag, a blocking robots.txt, no sitemap
 - **Admin bar** colored by environment, and `[Staging]` at the start of every browser tab title
 - **Production lock**: mark the live site once, and every database copy on another domain counts as staging
@@ -52,7 +54,7 @@ Or with WP-CLI:
 wp plugin install https://github.com/aryanjasala/axle-staging-guard/releases/latest/download/axle-staging-guard.zip --activate
 ```
 
-Needs WordPress 6.6+ and PHP 7.4+. To try it first, the **Try in WordPress Playground** badge opens a throwaway WordPress in your browser with the plugin and some demo content.
+Needs WordPress 6.6+ and PHP 7.4+. To try it first, [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with the latest release and some demo content. Nothing to install.
 
 ## Quick look
 
@@ -62,6 +64,8 @@ Pin the email behavior per environment in wp-config.php, so a database copy cann
 define( 'AXLE_STAGING_GUARD_MAIL_MODE', 'redirect' );   // block, redirect or allow
 define( 'AXLE_STAGING_GUARD_REDIRECT_TO', 'qa@example.com' );
 define( 'AXLE_STAGING_GUARD_ALLOWLIST', '@youragency.com' );
+define( 'AXLE_STAGING_GUARD_HTTP_MODE', 'block' );      // allow, log or block
+define( 'AXLE_STAGING_GUARD_HTTP_ALLOWED_HOSTS', 'sandbox.paypal.com, *.youragency.com' );
 ```
 
 It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, otherwise from the **production lock**: a hash of the live domain, which survives the search-replace step of a migration.
@@ -97,6 +101,10 @@ src/
 ├── Mail/
 │   ├── Guard.php          who an email may reach
 │   └── Log.php            the stopped email list
+├── Http/
+│   ├── Rules.php          host patterns and the decision, no WordPress state
+│   ├── Guard.php          pre_http_request, policy and caller detection
+│   └── Log.php            the request list
 ├── Search/Robots.php      noindex header and tag, robots.txt, sitemaps
 ├── Admin/                 settings screen, admin bar and tab titles
 ├── Health/SiteHealth.php  the Site Health check
@@ -110,12 +118,12 @@ docs/                      reference, development, contributing, releasing
 
 ## More free plugins
 
-Small plugins that each fill one gap in WordPress, all free with no pro version:
+Small plugins that each fill one gap in WordPress, all free with no pro version. Try them all together at [demo.axlewp.com](https://demo.axlewp.com/).
 
 | | Plugin | What it does |
 | --- | --- | --- |
-| <img src="https://raw.githubusercontent.com/aryanjasala/page-template-usage/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Page Template Usage](https://github.com/aryanjasala/page-template-usage) | See which template every page uses, and fix the pages on a missing template |
-| <img src="https://raw.githubusercontent.com/aryanjasala/category-tag-trash/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Category & Tag Trash](https://github.com/aryanjasala/category-tag-trash) | A trash for categories, tags and custom terms, with undo and full restore |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-page-template-usage/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Page Template Usage](https://github.com/aryanjasala/axle-page-template-usage) | See which template every page uses, and fix the pages on a missing template |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-category-tag-trash/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Category & Tag Trash](https://github.com/aryanjasala/axle-category-tag-trash) | A trash for categories, tags and custom terms, with undo and full restore |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-read-only-mode/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Read-Only Mode](https://github.com/aryanjasala/axle-read-only-mode) | Read-only mode for WordPress during migrations and deploys |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-block-restore/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Block Restore](https://github.com/aryanjasala/axle-block-restore) | Restore a single block from an old revision, not the whole post |
 | <img src="https://raw.githubusercontent.com/aryanjasala/activity-log-with-undo/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Activity Log with Undo](https://github.com/aryanjasala/activity-log-with-undo) | An activity log where every change you can reverse has an Undo button |

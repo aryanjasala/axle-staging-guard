@@ -8,6 +8,8 @@
 namespace AryanX\Axle\StagingGuard\Admin;
 
 use AryanX\Axle\StagingGuard\Environment;
+use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
+use AryanX\Axle\StagingGuard\Http\Rules as HttpRules;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 use AryanX\Axle\StagingGuard\Service;
 use AryanX\Axle\StagingGuard\Settings;
@@ -17,7 +19,7 @@ use const AryanX\Axle\StagingGuard\VERSION;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Status, settings, production lock, test email and the stopped email log.
+ * Status, settings, production lock, test email, test URL and the stopped email and request lists.
  */
 final class SettingsPage implements Service {
 
@@ -47,16 +49,25 @@ final class SettingsPage implements Service {
 	private Guard $mail;
 
 	/**
+	 * Outgoing request guard.
+	 *
+	 * @var HttpGuard
+	 */
+	private HttpGuard $http;
+
+	/**
 	 * Sets up the screen.
 	 *
 	 * @param Settings    $settings    Saved settings.
 	 * @param Environment $environment Environment detection.
 	 * @param Guard       $mail        Email guard.
+	 * @param HttpGuard   $http        Outgoing request guard.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
+		$this->http        = $http;
 	}
 
 	/**
@@ -138,6 +149,13 @@ final class SettingsPage implements Service {
 		);
 		$tone    = $tones[ $this->environment->type() ] ?? 'neutral';
 		$mail_on = $guarded && 'allow' !== $policy['mode'];
+		$http    = $this->http->policy();
+		$http_in = $this->http->log()->count_since( time() - DAY_IN_SECONDS );
+		$http_ui = array(
+			'block' => 'good',
+			'log'   => 'info',
+			'allow' => 'warning',
+		);
 		$hide_on = $guarded && $this->settings->get( 'noindex' );
 		?>
 		<div class="wrap axle-ui asg-page">
@@ -147,7 +165,7 @@ final class SettingsPage implements Service {
 
 			<?php $this->render_notices(); ?>
 
-			<p class="axle-intro"><?php esc_html_e( 'On every copy of your site that is not the live one, this stops email from reaching real people, asks search engines to stay away and labels the admin bar. On the live site it does nothing.', 'axle-staging-guard' ); ?></p>
+			<p class="axle-intro"><?php esc_html_e( 'On every copy of your site that is not the live one, this stops email from reaching real people, can stop or record calls to other services such as payment gateways and CRMs, asks search engines to stay away and labels the admin bar. On the live site it does nothing.', 'axle-staging-guard' ); ?></p>
 
 			<div class="axle-grid asg-states">
 				<section class="axle-card asg-state">
@@ -165,6 +183,21 @@ final class SettingsPage implements Service {
 								/* translators: %d: number of emails. */
 								_n( '%d email stopped in the last 24 hours.', '%d emails stopped in the last 24 hours.', $today, 'axle-staging-guard' ),
 								$today
+							)
+						);
+						?>
+					</p>
+				</section>
+				<section class="axle-card asg-state">
+					<h2 class="axle-card__title"><?php esc_html_e( 'Outgoing requests', 'axle-staging-guard' ); ?></h2>
+					<p><span class="axle-badge axle-badge--<?php echo esc_attr( $guarded ? $http_ui[ $http['mode'] ] : 'neutral' ); ?>"><?php echo esc_html( $guarded ? $this->http->describe() : __( 'Not changed (live site)', 'axle-staging-guard' ) ); ?></span></p>
+					<p>
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %d: number of different requests. */
+								_n( '%d different request stopped or recorded in the last 24 hours.', '%d different requests stopped or recorded in the last 24 hours.', $http_in, 'axle-staging-guard' ),
+								$http_in
 							)
 						);
 						?>
@@ -194,10 +227,17 @@ final class SettingsPage implements Service {
 			<?php endif; ?>
 
 			<div class="asg-columns">
-				<section class="axle-card">
-					<h2 class="axle-card__title"><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
-					<?php $this->render_settings_form( $policy ); ?>
-				</section>
+				<div class="asg-main">
+					<section class="axle-card">
+						<h2 class="axle-card__title"><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
+						<?php $this->render_settings_form( $policy ); ?>
+					</section>
+
+					<section class="axle-card asg-http">
+						<h2 class="axle-card__title"><?php esc_html_e( 'Calls to other services', 'axle-staging-guard' ); ?></h2>
+						<?php $this->render_http_form( $http ); ?>
+					</section>
+				</div>
 
 				<div class="asg-side">
 					<?php if ( 'constant' !== $this->environment->source() ) : ?>
@@ -227,10 +267,25 @@ final class SettingsPage implements Service {
 							<?php submit_button( __( 'Send', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
 						</form>
 					</section>
+
+					<section class="axle-card">
+						<h2 class="axle-card__title"><?php esc_html_e( 'Test a URL', 'axle-staging-guard' ); ?></h2>
+						<p><?php esc_html_e( 'See what would happen to a request to an address. Nothing is sent and nothing is recorded.', 'axle-staging-guard' ); ?></p>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
+							<?php wp_nonce_field( self::ACTION ); ?>
+							<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
+							<input type="hidden" name="task" value="test_url">
+							<label for="asg-test-url" class="screen-reader-text"><?php esc_html_e( 'Address to test', 'axle-staging-guard' ); ?></label>
+							<input type="url" id="asg-test-url" name="test_url" class="regular-text" placeholder="https://api.stripe.com/v1/charges" required>
+							<?php submit_button( __( 'Test URL', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
+						</form>
+					</section>
 				</div>
 			</div>
 
 			<?php $this->render_log( $log ); ?>
+
+			<?php $this->render_http_log( $http ); ?>
 
 			<?php AxleUi::footer(); ?>
 		</div>
@@ -389,6 +444,178 @@ final class SettingsPage implements Service {
 	}
 
 	/**
+	 * Prints the outgoing request settings form.
+	 *
+	 * @param array $http Outgoing request policy in effect.
+	 */
+	private function render_http_form( array $http ): void {
+		$saved = $this->settings->all();
+		$fixed = HttpGuard::fixed();
+		?>
+		<p><?php esc_html_e( 'Payment gateways, CRM and marketing syncs, webhooks and license checks make requests from the server, so a copy of the live site can still reach them with live keys. This applies to requests made through the WordPress HTTP API.', 'axle-staging-guard' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( self::ACTION ); ?>
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
+			<input type="hidden" name="task" value="save_http">
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Outgoing requests', 'axle-staging-guard' ); ?></th>
+					<td>
+						<fieldset <?php disabled( $fixed['mode'] ); ?>>
+							<legend class="screen-reader-text"><?php esc_html_e( 'Outgoing requests', 'axle-staging-guard' ); ?></legend>
+							<label><input type="radio" name="http_mode" value="block" <?php checked( 'block', $saved['http_mode'] ); ?>> <?php esc_html_e( 'Block all except allowed hosts', 'axle-staging-guard' ); ?></label><br>
+							<label><input type="radio" name="http_mode" value="log" <?php checked( 'log', $saved['http_mode'] ); ?>> <?php esc_html_e( 'Log only: let everything through and record it', 'axle-staging-guard' ); ?></label><br>
+							<label><input type="radio" name="http_mode" value="allow" <?php checked( 'allow', $saved['http_mode'] ); ?>> <?php esc_html_e( 'Allow all', 'axle-staging-guard' ); ?></label>
+						</fieldset>
+						<p class="description"><?php esc_html_e( 'A blocked request fails with an error, so the plugin that made it handles it like a network problem. Start with log only to see which services this site calls.', 'axle-staging-guard' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="asg-http-allow"><?php esc_html_e( 'Allowed hosts', 'axle-staging-guard' ); ?></label></th>
+					<td>
+						<textarea id="asg-http-allow" name="http_allowlist" rows="3" class="large-text code" placeholder="sandbox.paypal.com&#10;*.youragency.com" <?php disabled( $fixed['allowlist'] ); ?>><?php echo esc_textarea( implode( "\n", (array) $saved['http_allowlist'] ) ); ?></textarea>
+						<p class="description">
+							<?php esc_html_e( 'One host per line. Requests to these always go through. A name like *.example.com covers every subdomain but not example.com itself.', 'axle-staging-guard' ); ?>
+						</p>
+						<p class="description asg-always">
+							<?php
+							/* translators: %s: list of host names. */
+							echo esc_html( sprintf( __( 'Always allowed: %s, and this machine (localhost, 127.0.0.1).', 'axle-staging-guard' ), implode( ', ', $http['defaults'] ) ) );
+							?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="asg-http-block"><?php esc_html_e( 'Blocked hosts', 'axle-staging-guard' ); ?></label></th>
+					<td>
+						<textarea id="asg-http-block" name="http_blocklist" rows="3" class="large-text code" placeholder="api.stripe.com&#10;*.mailchimp.com" <?php disabled( $fixed['blocklist'] ); ?>><?php echo esc_textarea( implode( "\n", (array) $saved['http_blocklist'] ) ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'Optional. One host per line. These are blocked in every mode, even in allow all and log only, and even when they are also allowed above.', 'axle-staging-guard' ); ?></p>
+					</td>
+				</tr>
+			</table>
+			<?php if ( $http['locked'] ) : ?>
+				<p class="description"><?php esc_html_e( 'Greyed-out request settings are fixed in wp-config.php (AXLE_STAGING_GUARD_HTTP_MODE, AXLE_STAGING_GUARD_HTTP_ALLOWED_HOSTS or AXLE_STAGING_GUARD_HTTP_BLOCKED_HOSTS).', 'axle-staging-guard' ); ?></p>
+			<?php endif; ?>
+			<?php submit_button( __( 'Save request settings', 'axle-staging-guard' ), 'secondary' ); ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Prints the list of stopped and recorded requests.
+	 *
+	 * @param array $http Outgoing request policy in effect.
+	 */
+	private function render_http_log( array $http ): void {
+		$log     = $this->http->log()->all();
+		$actions = array(
+			'blocked' => __( 'Blocked', 'axle-staging-guard' ),
+			'logged'  => __( 'Logged', 'axle-staging-guard' ),
+		);
+		$tones   = array(
+			'blocked' => 'error',
+			'logged'  => 'info',
+		);
+		$callers = array(
+			'plugin'    => __( 'Plugin', 'axle-staging-guard' ),
+			'mu-plugin' => __( 'Must-use plugin', 'axle-staging-guard' ),
+			'theme'     => __( 'Theme', 'axle-staging-guard' ),
+		);
+		$format  = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		?>
+		<section class="axle-card asg-log asg-http-log">
+			<h2 class="axle-card__title"><?php esc_html_e( 'Stopped and recorded requests', 'axle-staging-guard' ); ?></h2>
+			<?php if ( ! $log ) : ?>
+				<div class="axle-empty">
+					<p>
+						<?php
+						echo esc_html(
+							'allow' === $http['mode'] && ! $http['blocklist']
+								? __( 'Nothing is listed because outgoing requests are set to allow all. Switch to log only to see which services this site calls.', 'axle-staging-guard' )
+								: __( 'No outgoing request has been stopped or recorded yet. Requests to other services that this copy blocks or logs are listed here, with how often they repeat.', 'axle-staging-guard' )
+						);
+						?>
+					</p>
+				</div>
+			<?php else : ?>
+				<table class="widefat striped">
+					<thead>
+						<tr>
+							<th scope="col"><?php esc_html_e( 'Last seen', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Request', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Made by', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Times', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'What happened', 'axle-staging-guard' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php
+						foreach ( $log as $entry ) :
+							list( $caller_type, $caller_slug ) = array_pad( explode( ':', (string) $entry['caller'], 2 ), 2, '' );
+							?>
+							<tr class="asg-http-row">
+								<td>
+									<?php
+									/* translators: %s: date and time. */
+									$title = sprintf( __( 'First seen %s', 'axle-staging-guard' ), wp_date( $format, (int) $entry['first'] ) );
+									?>
+									<time datetime="<?php echo esc_attr( gmdate( 'c', (int) $entry['time'] ) ); ?>" title="<?php echo esc_attr( wp_date( $format, (int) $entry['time'] ) . '. ' . $title ); ?>">
+										<?php
+										/* translators: %s: time ago, e.g. "5 minutes". */
+										echo esc_html( sprintf( __( '%s ago', 'axle-staging-guard' ), human_time_diff( (int) $entry['time'] ) ) );
+										?>
+									</time>
+								</td>
+								<td><code class="asg-http-url"><?php echo esc_html( $entry['method'] . ' ' . $entry['host'] . $entry['path'] ); ?></code></td>
+								<td>
+									<?php
+									if ( isset( $callers[ $caller_type ] ) && '' !== $caller_slug ) {
+										echo esc_html( $callers[ $caller_type ] . ': ' . $caller_slug );
+									} else {
+										esc_html_e( 'Not found', 'axle-staging-guard' );
+									}
+									?>
+								</td>
+								<td><?php echo esc_html( number_format_i18n( (int) $entry['count'] ) ); ?></td>
+								<td><span class="axle-badge axle-badge--<?php echo esc_attr( $tones[ $entry['action'] ] ?? 'neutral' ); ?>"><?php echo esc_html( $actions[ $entry['action'] ] ?? $entry['action'] ); ?></span></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p class="description">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: %d: number of days. */
+							_n( 'No query strings, bodies or headers are kept, and parts of the path that look like keys or email hashes are hidden. Entries are deleted after %d day.', 'No query strings, bodies or headers are kept, and parts of the path that look like keys or email hashes are hidden. Entries are deleted after %d days.', $this->http->log()->days(), 'axle-staging-guard' ),
+							$this->http->log()->days()
+						)
+					);
+					?>
+				</p>
+			<?php endif; ?>
+		</section>
+
+		<?php if ( $log ) : ?>
+			<section class="axle-card axle-card--danger">
+				<h2 class="axle-card__title"><?php esc_html_e( 'Clear the request list', 'axle-staging-guard' ); ?></h2>
+				<p><?php esc_html_e( 'Removes every entry from the request list above. The requests themselves are not affected. This cannot be undone.', 'axle-staging-guard' ); ?></p>
+				<?php $this->render_button( 'clear_http_log', __( 'Clear request list', 'axle-staging-guard' ), 'danger', __( 'Remove every entry from the request list? This cannot be undone.', 'axle-staging-guard' ) ); ?>
+			</section>
+		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Name of the short-lived transient that carries a "test a URL" result to the next page view.
+	 *
+	 * @return string
+	 */
+	private function url_result_key(): string {
+		return 'axle_sg_url_' . get_current_user_id();
+	}
+
+	/**
 	 * Prints a one-button form that runs a task.
 	 *
 	 * @param string $task    Task name.
@@ -417,10 +644,15 @@ final class SettingsPage implements Service {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$messages = array(
-			'saved'    => __( 'Settings saved.', 'axle-staging-guard' ),
-			'locked'   => __( 'Production is locked to this domain. Copies on other domains are now treated as staging.', 'axle-staging-guard' ),
-			'unlocked' => __( 'Production lock removed.', 'axle-staging-guard' ),
-			'cleared'  => __( 'Email list cleared.', 'axle-staging-guard' ),
+			'saved'        => __( 'Settings saved.', 'axle-staging-guard' ),
+			'locked'       => __( 'Production is locked to this domain. Copies on other domains are now treated as staging.', 'axle-staging-guard' ),
+			'unlocked'     => __( 'Production lock removed.', 'axle-staging-guard' ),
+			'cleared'      => __( 'Email list cleared.', 'axle-staging-guard' ),
+			'http_saved'   => __( 'Request settings saved.', 'axle-staging-guard' ),
+			'http_cleared' => __( 'Request list cleared.', 'axle-staging-guard' ),
+		);
+		$errors   = array(
+			'bad_url' => __( 'That is not a valid http or https address.', 'axle-staging-guard' ),
 		);
 		$tests    = array(
 			'blocked'        => __( 'Test email blocked. It is listed under Stopped email.', 'axle-staging-guard' ),
@@ -432,6 +664,21 @@ final class SettingsPage implements Service {
 
 		if ( isset( $messages[ $message ] ) ) {
 			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( $messages[ $message ] ) );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only flag set by our own redirect.
+		$checked = isset( $_GET['sg_url'] ) ? get_transient( $this->url_result_key() ) : false;
+		if ( is_array( $checked ) ) {
+			delete_transient( $this->url_result_key() );
+			printf(
+				'<div class="notice notice-info is-dismissible asg-url-result" role="status"><p><strong>%1$s</strong> %2$s</p></div>',
+				esc_html( sprintf( /* translators: %s: address without query string. */ __( 'Result for %s:', 'axle-staging-guard' ), $checked['host'] . $checked['path'] ) ),
+				esc_html( $checked['explanation'] )
+			);
+		}
+
+		if ( isset( $errors[ $message ] ) ) {
+			printf( '<div class="notice notice-error is-dismissible" role="alert"><p>%s</p></div>', esc_html( $errors[ $message ] ) );
 		}
 
 		if ( isset( $tests[ $result ] ) ) {
@@ -466,6 +713,53 @@ final class SettingsPage implements Service {
 			case 'clear_log':
 				$this->mail->log()->clear();
 				$args['sg_message'] = 'cleared';
+				break;
+
+			case 'clear_http_log':
+				$this->http->log()->clear();
+				$args['sg_message'] = 'http_cleared';
+				break;
+
+			case 'test_url':
+				$url = isset( $_POST['test_url'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['test_url'] ) ) ) : '';
+				if ( ! HttpRules::is_url( $url ) ) {
+					$args['sg_message'] = 'bad_url';
+				} else {
+					$decision = $this->http->evaluate( $url );
+					// Kept for one page view. The address itself, which may carry a key, never goes into a redirect.
+					set_transient(
+						$this->url_result_key(),
+						array(
+							'host'        => $decision['host'],
+							'path'        => $decision['path'],
+							'explanation' => $this->http->explain( $decision ),
+						),
+						MINUTE_IN_SECONDS
+					);
+					$args['sg_url'] = 1;
+				}
+				break;
+
+			case 'save_http':
+				$fixed   = HttpGuard::fixed();
+				$mode    = isset( $_POST['http_mode'] ) ? sanitize_key( wp_unslash( $_POST['http_mode'] ) ) : '';
+				$changes = array(
+					'http_mode'      => in_array( $mode, Settings::HTTP_MODES, true ) ? $mode : (string) $this->settings->get( 'http_mode' ),
+					'http_allowlist' => isset( $_POST['http_allowlist'] ) ? Settings::parse_hosts( sanitize_textarea_field( wp_unslash( $_POST['http_allowlist'] ) ) ) : array(),
+					'http_blocklist' => isset( $_POST['http_blocklist'] ) ? Settings::parse_hosts( sanitize_textarea_field( wp_unslash( $_POST['http_blocklist'] ) ) ) : array(),
+				);
+				foreach ( array(
+					'mode'      => 'http_mode',
+					'allowlist' => 'http_allowlist',
+					'blocklist' => 'http_blocklist',
+				) as $part => $key ) {
+					// Fields fixed in wp-config.php are disabled, so the form does not send them.
+					if ( $fixed[ $part ] ) {
+						unset( $changes[ $key ] );
+					}
+				}
+				$this->settings->update( $changes );
+				$args['sg_message'] = 'http_saved';
 				break;
 
 			case 'test_email':

@@ -9,6 +9,7 @@ namespace AryanX\Axle\StagingGuard\Health;
 
 use AryanX\Axle\StagingGuard\Admin\SettingsPage;
 use AryanX\Axle\StagingGuard\Environment;
+use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 use AryanX\Axle\StagingGuard\Service;
 use AryanX\Axle\StagingGuard\Settings;
@@ -42,16 +43,25 @@ final class SiteHealth implements Service {
 	private Guard $mail;
 
 	/**
+	 * Outgoing request guard.
+	 *
+	 * @var HttpGuard
+	 */
+	private HttpGuard $http;
+
+	/**
 	 * Sets up the check.
 	 *
 	 * @param Settings    $settings    Saved settings.
 	 * @param Environment $environment Environment detection.
 	 * @param Guard       $mail        Email guard.
+	 * @param HttpGuard   $http        Outgoing request guard.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
+		$this->http        = $http;
 	}
 
 	/**
@@ -93,10 +103,14 @@ final class SiteHealth implements Service {
 			return $this->result( 'recommended', __( 'This staging copy sends email normally', 'axle-staging-guard' ), __( 'Axle Staging Guard is set to send email normally, so customers can receive email from this copy.', 'axle-staging-guard' ), $action );
 		}
 
+		$http_open = $guarded && 'allow' === $this->http->policy()['mode'];
+		$http_note = __( 'Outgoing requests are set to allow all, so payment gateways, CRM and marketing syncs, webhooks and other services can still be reached from this copy with live keys. Block all except the hosts you list, or switch to log only to see what this site calls.', 'axle-staging-guard' );
+
 		$summary = sprintf(
-			/* translators: 1: what happens to email, e.g. "Blocked", 2: "hidden" or "not hidden". */
-			__( 'Email: %1$s. Search engines: %2$s.', 'axle-staging-guard' ),
+			/* translators: 1: what happens to email, e.g. "Blocked", 2: what happens to outgoing requests, e.g. "Logged, not blocked", 3: "hidden" or "not hidden". */
+			__( 'Email: %1$s. Outgoing requests: %2$s. Search engines: %3$s.', 'axle-staging-guard' ),
 			$this->mail->describe(),
+			$this->http->describe(),
 			$this->settings->get( 'noindex' ) ? __( 'hidden', 'axle-staging-guard' ) : __( 'not hidden', 'axle-staging-guard' )
 		);
 
@@ -104,9 +118,13 @@ final class SiteHealth implements Service {
 			return $this->result(
 				'recommended',
 				__( 'This site is treated as staging because of the production lock', 'axle-staging-guard' ),
-				$this->environment->explain() . ' ' . $summary . ' ' . __( 'If this is the live site and its address changed, lock it to this domain again. On a real staging copy, set WP_ENVIRONMENT_TYPE to staging in its wp-config.php to make it explicit.', 'axle-staging-guard' ),
+				$this->environment->explain() . ' ' . $summary . ' ' . __( 'If this is the live site and its address changed, lock it to this domain again. On a real staging copy, set WP_ENVIRONMENT_TYPE to staging in its wp-config.php to make it explicit.', 'axle-staging-guard' ) . ( $http_open ? ' ' . $http_note : '' ),
 				$action
 			);
+		}
+
+		if ( $http_open ) {
+			return $this->result( 'recommended', __( 'This staging copy can call any outside service', 'axle-staging-guard' ), $http_note, $action );
 		}
 
 		if ( $guarded ) {

@@ -8,6 +8,7 @@
 namespace AryanX\Axle\StagingGuard;
 
 use AryanX\Axle\StagingGuard\Admin\SettingsPage;
+use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 
 defined( 'ABSPATH' ) || exit;
@@ -44,16 +45,25 @@ final class Abilities implements Service {
 	private Guard $mail;
 
 	/**
+	 * Outgoing request handling.
+	 *
+	 * @var HttpGuard
+	 */
+	private HttpGuard $http;
+
+	/**
 	 * Sets up the abilities.
 	 *
 	 * @param Settings    $settings    Saved settings.
 	 * @param Environment $environment Environment detection.
 	 * @param Guard       $mail        Email handling.
+	 * @param HttpGuard   $http        Outgoing request handling.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
+		$this->http        = $http;
 	}
 
 	/**
@@ -80,7 +90,7 @@ final class Abilities implements Service {
 			self::CATEGORY,
 			array(
 				'label'       => __( 'Axle Staging Guard', 'axle-staging-guard' ),
-				'description' => __( 'Which environment this copy of the site is, and what it does with email and search engines.', 'axle-staging-guard' ),
+				'description' => __( 'Which environment this copy of the site is, and what it does with email, outgoing requests to other services and search engines.', 'axle-staging-guard' ),
 			)
 		);
 	}
@@ -96,7 +106,7 @@ final class Abilities implements Service {
 		$this->ability(
 			'get-environment',
 			__( 'Get environment', 'axle-staging-guard' ),
-			__( 'Whether this copy of the site is production, staging, development or local, how that was decided, and what happens to email and search engines here. Check this before sending email, importing data or changing settings.', 'axle-staging-guard' ),
+			__( 'Whether this copy of the site is production, staging, development or local, how that was decided, and what happens to email, outgoing API calls and search engines here. Check this before sending email, calling an outside service, importing data or changing settings.', 'axle-staging-guard' ),
 			array(),
 			array(
 				'type'       => 'object',
@@ -117,6 +127,10 @@ final class Abilities implements Service {
 						'description' => 'block, redirect or allow. Always allow on the live site.',
 					),
 					'email_detail' => array( 'type' => 'string' ),
+					'http'         => array(
+						'type'        => 'string',
+						'description' => 'allow, log or block: what happens to outgoing requests made through the WordPress HTTP API. Always allow on the live site.',
+					),
 					'noindex'      => array( 'type' => 'boolean' ),
 				),
 			),
@@ -165,6 +179,92 @@ final class Abilities implements Service {
 				),
 			),
 			array( $this, 'get_mail_log' ),
+			$can_manage,
+			array(
+				'readonly'   => true,
+				'idempotent' => true,
+			)
+		);
+
+		$this->ability(
+			'get-http-log',
+			__( 'List stopped outgoing requests', 'axle-staging-guard' ),
+			__( 'Outgoing requests to other services this copy blocked or recorded, most recent first: method, host, path without query string, the plugin or theme that made the call and how many times it happened.', 'axle-staging-guard' ),
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'limit' => array(
+						'type'    => 'integer',
+						'minimum' => 1,
+						'maximum' => 100,
+						'default' => 20,
+					),
+				),
+				'additionalProperties' => false,
+				'default'              => array(),
+			),
+			array(
+				'type'  => 'array',
+				'items' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'time'       => array( 'type' => 'string' ),
+						'first_seen' => array( 'type' => 'string' ),
+						'method'     => array( 'type' => 'string' ),
+						'host'       => array( 'type' => 'string' ),
+						'path'       => array( 'type' => 'string' ),
+						'action'     => array(
+							'type' => 'string',
+							'enum' => array( 'blocked', 'logged' ),
+						),
+						'caller'     => array(
+							'type'        => 'string',
+							'description' => 'plugin:slug, mu-plugin:slug or theme:slug. Empty when it could not be found.',
+						),
+						'count'      => array( 'type' => 'integer' ),
+					),
+				),
+			),
+			array( $this, 'get_http_log' ),
+			$can_manage,
+			array(
+				'readonly'   => true,
+				'idempotent' => true,
+			)
+		);
+
+		$this->ability(
+			'test-url',
+			__( 'Test a URL', 'axle-staging-guard' ),
+			__( 'Says what would happen to an outgoing request to a URL on this copy: allowed, logged or blocked, and why. Nothing is sent and nothing is recorded. Use it before running something that calls an outside service.', 'axle-staging-guard' ),
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'url'    => array(
+						'type'   => 'string',
+						'format' => 'uri',
+					),
+					'method' => array(
+						'type'    => 'string',
+						'default' => 'GET',
+					),
+				),
+				'required'             => array( 'url' ),
+				'additionalProperties' => false,
+			),
+			array(
+				'type'       => 'object',
+				'properties' => array(
+					'result'      => array(
+						'type' => 'string',
+						'enum' => array( 'allowed', 'logged', 'blocked' ),
+					),
+					'reason'      => array( 'type' => 'string' ),
+					'host'        => array( 'type' => 'string' ),
+					'explanation' => array( 'type' => 'string' ),
+				),
+			),
+			array( $this, 'test_url' ),
 			$can_manage,
 			array(
 				'readonly'   => true,
@@ -224,6 +324,7 @@ final class Abilities implements Service {
 			'email'        => $guarded ? (string) $policy['mode'] : 'allow',
 			// Where redirected email goes is for people who manage Axle Staging Guard only.
 			'email_detail' => $guarded && current_user_can( SettingsPage::capability() ) ? $this->mail->describe() : '',
+			'http'         => $guarded ? (string) $this->http->policy()['mode'] : 'allow',
 			'noindex'      => $guarded && (bool) $this->settings->get( 'noindex' ),
 		);
 	}
@@ -249,6 +350,60 @@ final class Abilities implements Service {
 				);
 			},
 			$this->mail->log()->all( $limit )
+		);
+	}
+
+	/**
+	 * Ability: stopped outgoing requests.
+	 *
+	 * @param array|null $input Ability input.
+	 * @return array[]
+	 */
+	public function get_http_log( $input = null ): array {
+		$limit = max( 1, min( 100, (int) ( ( (array) $input )['limit'] ?? 20 ) ) );
+
+		return array_map(
+			static function ( array $entry ): array {
+				return array(
+					'time'       => gmdate( 'c', (int) $entry['time'] ),
+					'first_seen' => gmdate( 'c', (int) $entry['first'] ),
+					'method'     => (string) $entry['method'],
+					'host'       => (string) $entry['host'],
+					'path'       => (string) $entry['path'],
+					'action'     => (string) $entry['action'],
+					'caller'     => (string) $entry['caller'],
+					'count'      => (int) $entry['count'],
+				);
+			},
+			$this->http->log()->all( $limit )
+		);
+	}
+
+	/**
+	 * Ability: what would happen to a URL.
+	 *
+	 * @param array|null $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function test_url( $input = null ) {
+		$input = (array) $input;
+		$url   = trim( (string) ( $input['url'] ?? '' ) );
+		if ( ! Http\Rules::is_url( $url ) ) {
+			return new \WP_Error( 'axle_staging_guard_invalid_url', __( 'That is not a valid http or https URL.', 'axle-staging-guard' ) );
+		}
+
+		$decision = $this->http->evaluate( $url, (string) ( $input['method'] ?? 'GET' ) );
+		$results  = array(
+			'allow' => 'allowed',
+			'log'   => 'logged',
+			'block' => 'blocked',
+		);
+
+		return array(
+			'result'      => $results[ $decision['action'] ],
+			'reason'      => $decision['reason'],
+			'host'        => $decision['host'],
+			'explanation' => $this->http->explain( $decision ),
 		);
 	}
 

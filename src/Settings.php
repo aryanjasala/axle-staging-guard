@@ -20,6 +20,7 @@ final class Settings {
 
 	public const OPTION     = 'axle_staging_guard_settings';
 	public const MAIL_MODES = array( 'block', 'redirect', 'allow' );
+	public const HTTP_MODES = array( 'allow', 'log', 'block' );
 
 	private const DEFAULTS = array(
 		'mail_mode'       => 'block',
@@ -27,6 +28,10 @@ final class Settings {
 		'allowlist'       => array(),
 		'keep_bodies'     => false,
 		'noindex'         => true,
+		// Existing installs keep "allow" so an update never breaks a staging site. New installs start on "log": see Plugin::activate().
+		'http_mode'       => 'allow',
+		'http_allowlist'  => array(),
+		'http_blocklist'  => array(),
 		'production_hash' => '',
 		'log_version'     => 0,
 	);
@@ -42,7 +47,7 @@ final class Settings {
 	/**
 	 * All settings in effect: saved values, defaults, then wp-config.php constants.
 	 *
-	 * @return array{mail_mode: string, redirect_to: string, allowlist: string[], keep_bodies: bool, noindex: bool, production_hash: string, log_version: int}
+	 * @return array{mail_mode: string, redirect_to: string, allowlist: string[], keep_bodies: bool, noindex: bool, http_mode: string, http_allowlist: string[], http_blocklist: string[], production_hash: string, log_version: int}
 	 */
 	public function all(): array {
 		$all = $this->saved();
@@ -128,5 +133,15 @@ final class Settings {
 		}
 
 		return array_values( array_unique( $entries ) );
+	}
+
+	/**
+	 * Cleans submitted host patterns: one host or `*.domain` per line or comma.
+	 *
+	 * @param string $raw Submitted text.
+	 * @return string[]
+	 */
+	public static function parse_hosts( string $raw ): array {
+		return Http\Rules::parse_patterns( $raw );
 	}
 }

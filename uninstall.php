@@ -1,6 +1,6 @@
 <?php
 /**
- * Removes Axle Staging Guard's settings, email log and schedule, on every site.
+ * Removes Axle Staging Guard's settings, email and request lists and schedule, on every site.
  *
  * @package StagingGuard
  */
@@ -18,7 +18,7 @@ function axle_staging_guard_uninstall_site(): void {
 	do {
 		$axle_staging_guard_entries = get_posts(
 			array(
-				'post_type'   => 'axle_sg_mail',
+				'post_type'   => array( 'axle_sg_mail', 'axle_sg_http' ),
 				'post_status' => 'any',
 				'numberposts' => 100,
 				'fields'      => 'ids',
