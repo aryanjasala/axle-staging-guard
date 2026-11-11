@@ -98,7 +98,7 @@ test.describe( 'Axle Staging Guard', () => {
 		page.once( 'dialog', ( dialog ) => dialog.accept() );
 		await page.locator( '.axle-card--danger' ).getByRole( 'button', { name: 'Clear list' } ).click();
 		await expect( page.locator( '.notice-success' ) ).toContainText( 'Email list cleared.' );
-		await expect( page.locator( '.axle-empty' ) ).toContainText( 'No email has been stopped yet' );
+		await expect( page.locator( '.asg-log:not( .asg-http-log ) .axle-empty' ) ).toContainText( 'No email has been stopped yet' );
 	} );
 
 	test( 'blocks a test email and lists it', async ( { page } ) => {
@@ -183,7 +183,7 @@ test.describe( 'Axle Staging Guard', () => {
 		const run = ( name, method, input ) => rest( method, `/wp-abilities/v1/abilities/axle-staging-guard/${ name }/run`, input ? { input } : undefined );
 
 		const listed = await rest( 'GET', '/wp-abilities/v1/abilities?category=axle-staging-guard' );
-		expect( listed.body.map( ( ability ) => ability.name ).sort() ).toEqual( [ 'axle-staging-guard/get-environment', 'axle-staging-guard/get-mail-log', 'axle-staging-guard/send-test-email' ] );
+		expect( listed.body.map( ( ability ) => ability.name ).sort() ).toEqual( [ 'axle-staging-guard/get-environment', 'axle-staging-guard/get-http-log', 'axle-staging-guard/get-mail-log', 'axle-staging-guard/send-test-email', 'axle-staging-guard/test-url' ] );
 		// MCP clients only list abilities marked public.
 		expect( JSON.parse( wpEval( `echo wp_json_encode( array_values( array_filter( array_map( function ( $ability ) { $meta = $ability->get_meta(); return ( ! empty( $meta['public'] ) && ! empty( $meta['mcp']['public'] ) ) ? '' : $ability->get_name(); }, wp_get_abilities() ), function ( $name ) { return 0 === strpos( $name, 'axle-staging-guard/' ); } ) ) );` ) ) ).toEqual( [] );
 

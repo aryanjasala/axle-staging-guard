@@ -17,13 +17,19 @@
 }
 
 .asg-columns > .axle-card,
+.asg-main > .axle-card,
 .asg-side > .axle-card {
 	margin: 0;
 }
 
+.asg-main,
 .asg-side {
 	display: grid;
 	gap: 16px;
+}
+
+.asg-http-url {
+	overflow-wrap: anywhere;
 }
 
 .asg-columns .form-table th {
@@ -76,4 +82,9 @@
 	.asg-columns .form-table th {
 		width: auto;
 	}
+}
+
+/* Four status cards fit in one row on a wide screen. */
+.asg-states.axle-grid {
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }

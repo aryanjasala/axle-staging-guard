@@ -1,6 +1,6 @@
 === Axle Staging Guard ===
 Contributors: aryanjasala
-Tags: staging, environment, email, noindex, development
+Tags: staging, environment, email, noindex, api
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -8,7 +8,7 @@ Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Stop staging sites from emailing real customers and showing up in Google. Colours the admin bar so nobody edits the wrong copy.
+Stop staging sites from emailing real customers, calling live APIs and showing up in Google. Colours the admin bar so nobody edits the wrong copy.
 
 == Description ==
 
@@ -18,7 +18,9 @@ Every agency has a staging story. A copy of the live database goes to staging, a
 * Google indexes staging.example.com and it outranks the real site,
 * someone spends an hour editing staging, thinking it was live.
 
-Axle Staging Guard prevents all three, on every copy that is not the live site.
+A fourth one is quieter: the copy keeps talking to your payment gateway, CRM, Mailchimp list or Zapier webhooks with the live keys it inherited.
+
+Axle Staging Guard prevents all four, on every copy that is not the live site.
 
 **On staging, development and local copies it:**
 
@@ -26,6 +28,10 @@ Axle Staging Guard prevents all three, on every copy that is not the live site.
 * Lets your own team keep receiving email: list addresses or whole domains (@youragency.com) under "Always deliver to".
 * Keeps a list of the last 50 stopped emails (recipient, subject and time), so you can see what would have gone out. Turn on "keep message bodies" to check email content as well.
 * Sends a test email from the settings screen, so you can see exactly what happens to email from this copy.
+* Blocks outgoing API calls except to hosts you allow, or just logs them. It covers requests made through the WordPress HTTP API, which is what payment gateways, CRM and marketing plugins, webhook plugins, Slack notifications and license checks use. A blocked call fails with a clear error, never a fake success.
+* Always lets through what WordPress needs: wordpress.org and its subdomains (updates, translations, the plugin directory), the site's own address and localhost. Add your own hosts, with wildcards like `*.example.com`.
+* Keeps a list of the stopped or logged calls: method, host, path, the plugin that made them and how often. No query strings, bodies or headers, and keys in webhook URLs are masked.
+* "Test a URL" shows what would happen to a request, without sending it.
 * Hides the site from search engines with an `X-Robots-Tag` header, a `noindex, nofollow` robots meta tag and a robots.txt that blocks everything, and turns off the XML sitemap.
 * Colours the whole admin bar (orange for staging, blue for development, green for local) and labels it, on the dashboard and on the front end.
 * Adds the environment to every browser tab title, for example "[Staging] Posts", so the right tab is easy to find.
@@ -53,6 +59,9 @@ Fix the email behaviour per environment, so a database copy cannot change it:
 `define( 'AXLE_STAGING_GUARD_MAIL_MODE', 'redirect' ); // block, redirect or allow`
 `define( 'AXLE_STAGING_GUARD_REDIRECT_TO', 'qa@example.com' );`
 `define( 'AXLE_STAGING_GUARD_ALLOWLIST', '@youragency.com, client@example.com' );`
+`define( 'AXLE_STAGING_GUARD_HTTP_MODE', 'block' ); // allow, log or block`
+`define( 'AXLE_STAGING_GUARD_HTTP_ALLOWED_HOSTS', 'sandbox.paypal.com, *.youragency.com' );`
+`define( 'AXLE_STAGING_GUARD_HTTP_BLOCKED_HOSTS', 'hooks.slack.com' ); // always blocked, in every mode`
 `define( 'AXLE_STAGING_GUARD_PRODUCTION_HOSTS', 'example.com, shop.example.com' ); // the live domains`
 `define( 'AXLE_STAGING_GUARD_KEEP_BODIES', false );`
 `define( 'AXLE_STAGING_GUARD_NOINDEX', true );`
@@ -65,6 +74,8 @@ Fix the email behaviour per environment, so a database copy cannot change it:
 * `wp axle-staging-guard unlock-production` removes the lock.
 * `wp axle-staging-guard log` lists stopped email.
 * `wp axle-staging-guard test-email you@example.com` sends a test email and reports what happened to it.
+* `wp axle-staging-guard http-log` lists blocked and logged outgoing requests.
+* `wp axle-staging-guard test-url https://api.example.com/v1` says what would happen to a request to that URL.
 
 **Try it before you install.** [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
 
@@ -92,7 +103,31 @@ Then the production lock no longer matches, and the live site would count as sta
 
 = Does the email log keep personal data? =
 
-It keeps who an email was for and its subject, and the message only if you turn that on. Entries are deleted after 7 days, and the log is part of the WordPress export and erase personal data tools. The live site keeps no log.
+The list of outgoing requests holds none: no query strings, bodies or headers, and parts of a path that look like email addresses, hashes or keys are hidden. The email log keeps who an email was for and its subject, and the message only if you turn that on. Entries are deleted after 7 days, and the email log is part of the WordPress export and erase personal data tools. The live site keeps no log.
+
+= Does it block my payment gateway's test mode? =
+
+It blocks hosts, not modes. `api.stripe.com` and `api.paypal.com` are the same host whether the key is a test key or a live one, so in "Block all except allowed hosts" both are blocked until you allow them. Allow the sandbox host you want to test against (for example `sandbox.paypal.com`), or allow `api.stripe.com` only when the copy has test keys. Not sure which hosts a plugin calls? Use "Log only" for a day and read the list.
+
+= How do I allow a host? =
+
+Add it under Tools > Staging Guard > "Calls to other services" > Allowed hosts, one per line. `api.example.com` allows that host, and `*.example.com` allows every subdomain (but not example.com itself). You can also set `AXLE_STAGING_GUARD_HTTP_ALLOWED_HOSTS` in wp-config.php, or use the `axle_staging_guard_http_allowed_hosts` filter. "Test a URL" on the same screen shows whether an address would get through.
+
+= Does it affect production? =
+
+No. On the live site requests are never blocked, changed or recorded, whatever the settings say, and there is no list.
+
+= Will updating break my staging site? =
+
+No. Sites that already use the plugin keep "Allow all" for outgoing requests, so nothing changes until you choose. A fresh install starts on "Log only", which lets everything through and records it, so you can see what the site calls before you start blocking. Site Health reminds you while a staging copy allows all calls.
+
+= What does a blocked request look like to the plugin that made it? =
+
+A failed request, like a network error: the WordPress HTTP API returns a WP_Error with the code `axle_staging_guard_http_blocked`. It is never reported as a success.
+
+= What does it not catch? =
+
+Code that does not go through the WordPress HTTP API: a PHP SDK that opens its own cURL connection, `file_get_contents()` on a URL, and anything the visitor's browser sends (analytics scripts, embeds). Server-side requests from WordPress and from plugins that use `wp_remote_get()` and friends are covered.
 
 == Screenshots ==
 
