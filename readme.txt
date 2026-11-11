@@ -40,7 +40,7 @@ Part of [Axle](https://axlewp.com/) by AryanX, a family of free plugins for runn
 = How it knows which copy is live =
 
 1. If `WP_ENVIRONMENT_TYPE` is set in wp-config.php or in the server environment, it uses that. This is the WordPress standard, and many hosts set it for you.
-2. Otherwise, use the **production lock**: on the live site, go to Tools > Axle Staging Guard and click "This is the live site". From then on, any copy of the database running on a different domain is treated as staging, with no wp-config.php change.
+2. Otherwise, use the **production lock**: on the live site, go to Tools > Staging Guard and click "This is the live site". From then on, any copy of the database running on a different domain is treated as staging, with no wp-config.php change.
 
 The lock stores a hash of the live domain instead of the domain itself. Migration tools that search and replace the domain name in the database leave the hash alone, so the lock survives the copy to staging.
 
@@ -88,7 +88,7 @@ Use the `axle_staging_guard_environment` filter. It receives an array with `type
 
 = What if the live site moves to a new domain? =
 
-Then the production lock no longer matches, and the live site would count as staging. Axle Staging Guard warns about this on every admin screen and in Site Health, so it does not go unnoticed. Lock the new domain from Tools > Axle Staging Guard, or list every live domain in `AXLE_STAGING_GUARD_PRODUCTION_HOSTS` so a move never trips it. `www.` and the bare domain already count as the same.
+Then the production lock no longer matches, and the live site would count as staging. Axle Staging Guard warns about this on every admin screen and in Site Health, so it does not go unnoticed. Lock the new domain from Tools > Staging Guard, or list every live domain in `AXLE_STAGING_GUARD_PRODUCTION_HOSTS` so a move never trips it. `www.` and the bare domain already count as the same.
 
 = Does the email log keep personal data? =
 
@@ -97,7 +97,7 @@ It keeps who an email was for and its subject, and the message only if you turn 
 == Screenshots ==
 
 1. The coloured admin bar on a staging copy.
-2. Tools > Axle Staging Guard with the email log.
+2. Tools > Staging Guard with the email log.
 
 == Changelog ==
 

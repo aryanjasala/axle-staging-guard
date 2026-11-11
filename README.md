@@ -71,7 +71,7 @@ It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, other
 <table>
   <tr>
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-1.png" alt="The coloured admin bar on a staging copy"><br><sub>The coloured admin bar on a staging copy</sub></td>
-    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Axle Staging Guard with the email log"><br><sub>Tools > Axle Staging Guard with the email log</sub></td>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Staging Guard with the email log"><br><sub>Tools > Staging Guard with the email log</sub></td>
   </tr>
 </table>
 
