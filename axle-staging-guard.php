@@ -3,7 +3,7 @@
  * Plugin Name:       Axle Staging Guard
  * Plugin URI:        https://wordpress.org/plugins/axle-staging-guard/
  * Description:       Keeps staging and local copies of a site from emailing real people or getting indexed by search engines, and colours the admin bar so nobody mistakes them for the live site.
- * Version:           2.0.1
+ * Version:           2.1.0
  * Requires at least: 6.6
  * Requires PHP:      7.4
  * Author:            Aryan Jasala
@@ -19,7 +19,7 @@ namespace AryanX\Axle\StagingGuard;
 
 defined( 'ABSPATH' ) || exit;
 
-const VERSION     = '2.0.1';
+const VERSION     = '2.1.0';
 const PLUGIN_FILE = __FILE__;
 
 // PSR-4: AryanX\Axle\StagingGuard\Foo\Bar lives in src/Foo/Bar.php.
