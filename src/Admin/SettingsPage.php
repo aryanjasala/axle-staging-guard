@@ -1,6 +1,6 @@
 <?php
 /**
- * Tools > Axle Staging Guard.
+ * Tools > Staging Guard.
  *
  * @package AryanX\Axle\StagingGuard
  */
@@ -86,12 +86,12 @@ final class SettingsPage implements Service {
 	}
 
 	/**
-	 * Registers Tools > Axle Staging Guard.
+	 * Registers Tools > Staging Guard.
 	 */
 	public function add_page(): void {
 		$hook = add_management_page(
 			__( 'Axle Staging Guard', 'axle-staging-guard' ),
-			__( 'Axle Staging Guard', 'axle-staging-guard' ),
+			__( 'Staging Guard', 'axle-staging-guard' ),
 			self::capability(),
 			self::SLUG,
 			array( $this, 'render' )

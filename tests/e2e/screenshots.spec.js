@@ -39,7 +39,7 @@ test.describe( 'Screenshots', () => {
 		await shot( page, 1, { clip: { x: 0, y: 0, width: 1280, height: 480 } } );
 	} );
 
-	test( '2: Tools > Axle Staging Guard with the email log', async ( { page } ) => {
+	test( '2: Tools > Staging Guard with the email log', async ( { page } ) => {
 		await page.goto( '/wp-admin/tools.php?page=axle-staging-guard' );
 		await expect( page.locator( '.asg-log__row' ) ).toHaveCount( 3 );
 		await shot( page, 2, { fullPage: true } );

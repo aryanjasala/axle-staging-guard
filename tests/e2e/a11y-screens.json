@@ -4,11 +4,11 @@
   "exclude": [],
   "screens": [
     {
-      "name": "Tools > Axle Staging Guard on a site with no production address yet",
+      "name": "Tools > Staging Guard on a site with no production address yet",
       "url": "/wp-admin/tools.php?page=axle-staging-guard"
     },
     {
-      "name": "Tools > Axle Staging Guard on a staging copy, with the email log and one email open",
+      "name": "Tools > Staging Guard on a staging copy, with the email log and one email open",
       "setup": [
         ["eval", "update_option( 'axle_staging_guard_settings', array( 'production_hash' => AryanX\\Axle\\StagingGuard\\Environment::hash( 'shop.example.com' ), 'allowlist' => array( '@youragency.com' ), 'keep_bodies' => true ), false );"],
         ["eval", "wp_mail( 'sam.lee@example.net', 'Your order #1042 has shipped', 'Your order is on its way.' ); wp_mail( array( 'priya@example.org', 'dev@youragency.com' ), 'New comment', 'A new comment is waiting for approval.' );"]

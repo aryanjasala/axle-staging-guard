@@ -74,7 +74,7 @@ final class LockNotice implements Service {
 			esc_html(
 				sprintf(
 					/* translators: %s: domain name. */
-					__( 'The production lock was set on a different domain, so email from %s is held back and search engines are asked to stay away. That is right for a staging copy. If this is the live site and its address changed, lock it to this domain on Tools > Axle Staging Guard.', 'axle-staging-guard' ),
+					__( 'The production lock was set on a different domain, so email from %s is held back and search engines are asked to stay away. That is right for a staging copy. If this is the live site and its address changed, lock it to this domain on Tools > Staging Guard.', 'axle-staging-guard' ),
 					$this->environment->domain()
 				)
 			),
