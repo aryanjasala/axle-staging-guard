@@ -1,6 +1,6 @@
 <?php
 /**
- * Removes Axle Staging Guard's settings, email and request lists and schedule, on every site.
+ * Removes Axle Staging Guard's settings (including the gate password hash and share links), email, request and held-task lists, schedule and temporary data, on every site.
  *
  * @package StagingGuard
  */
@@ -14,11 +14,17 @@ function axle_staging_guard_uninstall_site(): void {
 	wp_clear_scheduled_hook( 'axle_staging_guard_purge_log' );
 	delete_option( 'axle_staging_guard_settings' );
 	delete_option( 'axle_staging_guard_mail_log' );
+	delete_transient( 'axle_sg_held_tick' );
+
+	// Counters for wrong gate passwords and the short-lived "Undo" and "test a URL" states.
+	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall only: transients with a variable name cannot be listed another way.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( '_transient_axle_sg_' ) . '%', $wpdb->esc_like( '_transient_timeout_axle_sg_' ) . '%' ) );
 
 	do {
 		$axle_staging_guard_entries = get_posts(
 			array(
-				'post_type'   => array( 'axle_sg_mail', 'axle_sg_http' ),
+				'post_type'   => array( 'axle_sg_mail', 'axle_sg_http', 'axle_sg_held' ),
 				'post_status' => 'any',
 				'numberposts' => 100,
 				'fields'      => 'ids',
@@ -56,3 +62,4 @@ if ( is_multisite() ) {
 
 // The notice dismissals are user meta, which is shared across a network.
 delete_metadata( 'user', 0, 'axle_staging_guard_lock_notice_dismissed', '', true );
+delete_metadata( 'user', 0, 'axle_staging_guard_steps_dismissed', '', true );

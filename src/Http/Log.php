@@ -209,14 +209,29 @@ final class Log implements Service {
 
 	/**
 	 * Removes every entry.
+	 *
+	 * @return int How many entries were removed.
 	 */
-	public function clear(): void {
+	public function clear(): int {
+		$removed = 0;
+
 		do {
 			$ids = $this->ids( array() );
 			foreach ( $ids as $id ) {
 				wp_delete_post( $id, true );
 			}
+			$removed += count( $ids );
 		} while ( $ids );
+
+		/**
+		 * Fires after a list of stopped items is cleared by hand.
+		 *
+		 * @param string $list    Which list: mail, http or held.
+		 * @param int    $removed How many entries were removed.
+		 */
+		do_action( 'axle_staging_guard_log_cleared', 'http', $removed );
+
+		return $removed;
 	}
 
 	/**

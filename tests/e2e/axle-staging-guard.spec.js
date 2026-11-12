@@ -86,17 +86,20 @@ test.describe( 'Axle Staging Guard', () => {
 		await page.getByRole( 'button', { name: 'Send', exact: true } ).click();
 		await expect( page.locator( '.asg-log__row' ) ).toHaveCount( 1 );
 
-		// Clear list is in a danger card and asks first, saying it cannot be undone.
-		let asked = '';
-		page.once( 'dialog', ( dialog ) => {
-			asked = dialog.message();
-			dialog.dismiss();
-		} );
-		await page.locator( '.axle-card--danger' ).getByRole( 'button', { name: 'Clear list' } ).click();
-		expect( asked ).toContain( 'cannot be undone' );
+		// Clear list is in a danger card and asks in place first, saying it cannot be undone.
+		const danger = page.locator( '.axle-card--danger' ).first();
+		const step = danger.locator( '.axle-confirm' );
+		await expect( step ).toBeHidden();
+		await danger.locator( '.asg-confirm-open' ).click();
+		await expect( step ).toBeVisible();
+		await expect( step ).toContainText( 'cannot be undone' );
+		await expect( step.getByRole( 'button', { name: 'Clear list' } ) ).toBeFocused();
+		await page.keyboard.press( 'Escape' );
+		await expect( step ).toBeHidden();
+		await expect( danger.locator( '.asg-confirm-open' ) ).toBeFocused();
 		expect( wp( 'axle-staging-guard', 'log', '--format=count' ) ).toBe( '1' );
-		page.once( 'dialog', ( dialog ) => dialog.accept() );
-		await page.locator( '.axle-card--danger' ).getByRole( 'button', { name: 'Clear list' } ).click();
+		await danger.locator( '.asg-confirm-open' ).click();
+		await step.getByRole( 'button', { name: 'Clear list' } ).click();
 		await expect( page.locator( '.notice-success' ) ).toContainText( 'Email list cleared.' );
 		await expect( page.locator( '.asg-log:not( .asg-http-log ) .axle-empty' ) ).toContainText( 'No email has been stopped yet' );
 	} );
@@ -183,7 +186,21 @@ test.describe( 'Axle Staging Guard', () => {
 		const run = ( name, method, input ) => rest( method, `/wp-abilities/v1/abilities/axle-staging-guard/${ name }/run`, input ? { input } : undefined );
 
 		const listed = await rest( 'GET', '/wp-abilities/v1/abilities?category=axle-staging-guard' );
-		expect( listed.body.map( ( ability ) => ability.name ).sort() ).toEqual( [ 'axle-staging-guard/get-environment', 'axle-staging-guard/get-http-log', 'axle-staging-guard/get-mail-log', 'axle-staging-guard/send-test-email', 'axle-staging-guard/test-url' ] );
+		expect( listed.body.map( ( ability ) => ability.name ).sort() ).toEqual( [
+			'axle-staging-guard/clear-log',
+			'axle-staging-guard/create-gate-link',
+			'axle-staging-guard/get-environment',
+			'axle-staging-guard/get-gate',
+			'axle-staging-guard/get-http-log',
+			'axle-staging-guard/get-mail-log',
+			'axle-staging-guard/hold-task',
+			'axle-staging-guard/list-gate-links',
+			'axle-staging-guard/list-held-tasks',
+			'axle-staging-guard/revoke-gate-link',
+			'axle-staging-guard/send-test-email',
+			'axle-staging-guard/set-gate',
+			'axle-staging-guard/test-url',
+		] );
 		// MCP clients only list abilities marked public.
 		expect( JSON.parse( wpEval( `echo wp_json_encode( array_values( array_filter( array_map( function ( $ability ) { $meta = $ability->get_meta(); return ( ! empty( $meta['public'] ) && ! empty( $meta['mcp']['public'] ) ) ? '' : $ability->get_name(); }, wp_get_abilities() ), function ( $name ) { return 0 === strpos( $name, 'axle-staging-guard/' ); } ) ) );` ) ) ).toEqual( [] );
 

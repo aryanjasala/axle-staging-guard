@@ -55,6 +55,49 @@ When a constant is set, its setting on the screen is read-only.
 | `axle_staging_guard_http_logged` | action | `( array $entry )`. A request went through in log only mode and was recorded |
 | `axle_staging_guard_production_locked` | action | `( string $domain )`. The production lock was set on this domain |
 | `axle_staging_guard_production_unlocked` | action | The production lock was removed |
+| `axle_staging_guard_settings_saved` | action | `( array $new, array $old )`. Settings were saved, from the screen, WP-CLI or an ability. The gate's password hash and secret are left out |
+| `axle_staging_guard_log_cleared` | action | `( string $list, int $removed )`. A list was cleared by hand: `mail`, `http` or `held` |
+| `axle_staging_guard_gate_enabled` | filter | `( bool $on )`. Whether the password gate is on. It cannot turn the gate on for the live site |
+| `axle_staging_guard_gate_allow_request` | filter | `( bool $allowed, string $reason, string $path )`. Let a request past the gate. `$reason` is `user`, `ip`, `path`, `session`, `link` or empty |
+| `axle_staging_guard_gate_user_allowed` | filter | `( bool $allowed, WP_User $user )`. Whether a logged-in user skips the gate. Default true for every logged-in user |
+| `axle_staging_guard_gate_bypass_paths` | filter | `( string[] $paths )`. Paths that skip the gate. `*` matches anything. REST routes are matched as `/wp-json/<route>` |
+| `axle_staging_guard_gate_allowed_ips` | filter | `( string[] $ips )`. Addresses and CIDR ranges that skip the gate |
+| `axle_staging_guard_gate_client_ip` | filter | `( string $ip )`. The visitor's address. Only `REMOTE_ADDR` is trusted, so behind a proxy or CDN return the real one here |
+| `axle_staging_guard_gate_cookie_name` | filter | `( string $name )`. Name of the cookie that remembers a visitor |
+| `axle_staging_guard_gate_session_hours` | filter | `( int $hours )`. How long a correct password keeps a visitor in. Default 12, between 1 and 720 |
+| `axle_staging_guard_gate_max_attempts` | filter | `( int $attempts )`. Wrong passwords per IP address before a lockout. Default 5 |
+| `axle_staging_guard_gate_lockout_minutes` | filter | `( int $minutes )`. How long a lockout lasts. Default 15 |
+| `axle_staging_guard_gate_status` | filter | `( int $status )`. HTTP status of the gate screen. Default 401, between 400 and 599 |
+| `axle_staging_guard_gate_message` | filter | `( string $text )`. The sentence above the password field |
+| `axle_staging_guard_gate_label` | filter | `( string $label )`. The label of the password field |
+| `axle_staging_guard_gate_button` | filter | `( string $text )`. The text of the button |
+| `axle_staging_guard_gate_min_password_length` | filter | `( int $length )`. Shortest password accepted. Default 8, never below 4 |
+| `axle_staging_guard_gate_link_durations` | filter | `( int[] $days )`. The lengths a share link can have. Default 1, 3, 7, 14 and 30. Anything outside 1 to 30 is dropped |
+| `axle_staging_guard_gate_max_links` | filter | `( int $max )`. Share links that can exist at once. Default 50 |
+| `axle_staging_guard_gate_link_retention_days` | filter | `( int $days )`. Days an expired link stays in the list. Default 30 |
+| `axle_staging_guard_gate_link_url` | filter | `( string $url, array $link )`. The address of a share link |
+| `axle_staging_guard_gate_turned_on` | action | The gate was turned on |
+| `axle_staging_guard_gate_turned_off` | action | The gate was turned off |
+| `axle_staging_guard_gate_password_changed` | action | The gate password changed. Everyone who entered the old one is signed out of the gate |
+| `axle_staging_guard_gate_denied` | action | `( array $context )`. The gate stopped a request: `path` (no query string), `method` and `error` (empty, `password`, `expired`, `link`, `locked` or `rest`) |
+| `axle_staging_guard_gate_unlocked` | action | `( string $ip )`. A visitor got in with the password |
+| `axle_staging_guard_gate_locked_out` | action | `( string $ip, int $minutes )`. An address was locked out |
+| `axle_staging_guard_gate_link_created` | action | `( array $link )`. A share link was made: `id`, `name`, `created`, `expires`, `last_used`, `uses`, `by` |
+| `axle_staging_guard_gate_link_used` | action | `( array $link )`. Someone got in with a share link |
+| `axle_staging_guard_gate_link_revoked` | action | `( array $link )`. A share link was revoked |
+| `axle_staging_guard_cron_protected_hooks` | filter | `( string[] $hooks )`. Scheduled hooks that are never held. Remove one to allow holding it. Names starting `wp_privacy_` or `recovery_mode_` are protected as well |
+| `axle_staging_guard_cron_protected_prefixes` | filter | `( string[] $prefixes )`. Starts of hook names that are never held. Default `wp_privacy_` and `recovery_mode_` |
+| `axle_staging_guard_cron_suggestions` | filter | `( string[] $patterns )`. Regular expressions, without delimiters, that pre-tick a task on the Scheduled tasks tab. Default newsletter, export, sync, feed, renewal and subscription payment |
+| `axle_staging_guard_cron_held_hooks` | filter | `( string[] $hooks )`. The hooks held on this copy. Protected hooks are removed afterwards |
+| `axle_staging_guard_cron_args_summary` | filter | `( string $summary, string $hook, array $args )`. How a held task's arguments are described. Do not store `$args` |
+| `axle_staging_guard_cron_list_limit` | filter | `( int $limit )`. Tasks listed at most. Default 500 |
+| `axle_staging_guard_held_log_size` | filter | `( int $size )`. Held runs the list keeps at most. Default 1000 |
+| `axle_staging_guard_cron_held` | action | `( array $entry )`. A task was held and listed: `id`, `hook`, `due`, `args` (a summary) and `owner` |
+| `axle_staging_guard_cron_hold_changed` | action | `( string[] $held, string[] $previous )`. The held list was saved |
+| `axle_staging_guard_cron_run_once` | action | `( string $hook, array $args )`. A task is about to run once by hand |
+| `axle_staging_guard.copiedMessage` | JS filter | `( string $message, string $link )`. What is announced after Copy link |
+| `axle_staging_guard.confirmMessage` | JS filter | `( string $message, Element $step )`. What is announced when an in-place confirm step opens |
+| `axle_staging_guard.announced` | JS action | `( string $message )`. Something was announced to screen readers |
 
 ## Changing the detected environment
 
@@ -79,6 +122,14 @@ On WordPress 6.9 and later, Axle Staging Guard registers [abilities](https://dev
 | `axle-staging-guard/get-http-log` | Read-only. Stopped and recorded outgoing requests, most recent first: method, host, path, caller and count. Input: `limit` | the Axle Staging Guard capability |
 | `axle-staging-guard/test-url` | Read-only. Says what would happen to a request to `url`: allowed, logged or blocked, and why. Sends and records nothing | the Axle Staging Guard capability |
 | `axle-staging-guard/send-test-email` | Sends a test email to `to` and says what happened to it. On the live site it really sends | the Axle Staging Guard capability |
+| `axle-staging-guard/get-gate` | Read-only. Whether the password gate is on, whether a password is set, the open IPs and paths, and how many share links work | the Axle Staging Guard capability |
+| `axle-staging-guard/set-gate` | Turns the gate on or off (`enabled`), and can set `password`. Idempotent | the Axle Staging Guard capability |
+| `axle-staging-guard/list-gate-links` | Read-only. Share links: name, whether it works, expiry, last use and visits. The address is never listed | the Axle Staging Guard capability |
+| `axle-staging-guard/create-gate-link` | Makes a named share link (`name`, `days` 1 to 30) and returns its address | the Axle Staging Guard capability |
+| `axle-staging-guard/revoke-gate-link` | Destructive, idempotent (REST `DELETE`). Revokes the link `id` | the Axle Staging Guard capability |
+| `axle-staging-guard/list-held-tasks` | Read-only. The hooks held on this copy and the runs held recently. Input: `limit` | the Axle Staging Guard capability |
+| `axle-staging-guard/hold-task` | Holds or releases the scheduled task `hook` (`held` true or false). Protected hooks are refused. Idempotent | the Axle Staging Guard capability |
+| `axle-staging-guard/clear-log` | Destructive, idempotent (REST `DELETE`). Empties the `mail`, `http` or `held` list, or `all` of them. The email, requests and tasks themselves are not affected | the Axle Staging Guard capability |
 
 ## WP-CLI
 
@@ -90,7 +141,56 @@ wp axle-staging-guard log [--format=table|csv|json|count]
 wp axle-staging-guard test-email <to>              # prints blocked, redirected, partly_blocked or sent
 wp axle-staging-guard http-log [--format=table|csv|json|count]
 wp axle-staging-guard test-url <url> [--method=GET] [--format=json]   # prints allowed, logged or blocked, and why
+wp axle-staging-guard set <setting> <value>        # mail_mode, redirect_to, allowlist, keep_bodies, noindex, http_mode, http_allowlist, http_blocklist
+wp axle-staging-guard clear-log [--list=mail|http|all]
+
+wp axle-staging-guard gate on [--password=<password>]   # needs a password, set now or earlier
+wp axle-staging-guard gate off
+wp axle-staging-guard gate status [--format=json]
+wp axle-staging-guard gate link create <name> [--days=7] [--porcelain]   # prints the link
+wp axle-staging-guard gate link list [--format=table|csv|json|ids|count]
+wp axle-staging-guard gate link revoke <id>
+
+wp axle-staging-guard hold list [--format=table|csv|json|ids|count]      # every scheduled task and whether it is held
+wp axle-staging-guard hold add <hook>...
+wp axle-staging-guard hold remove <hook>...
+wp axle-staging-guard hold run <hook>                                   # run a task once, now
+wp axle-staging-guard hold log [--format=table|csv|json|count]
+wp axle-staging-guard hold clear-log
 ```
+
+## Password gate
+
+On **Tools > Staging Guard > Password gate** you can put one shared password in front of a copy that is not the live site. Visitors who are not logged in see a small page with the site's name and a password field. It is off until you turn it on, it needs a password before it can be turned on, and it never runs on the live site, whatever a filter says.
+
+**What the gate screen does.** It answers `401` (`429` during a lockout), sends `X-Robots-Tag: noindex, nofollow`, a robots meta tag and no-cache headers, and defines `DONOTCACHEPAGE`. It loads nothing from the theme and nothing from outside, so it shows the site's name and nothing else. It works without JavaScript, is labelled for screen readers and is translatable. After a wrong password the page says so. After 5 wrong passwords from one address, that address is locked out for 15 minutes, even for the right password. Both numbers have filters. The counter is kept in a transient under a hash of the address, never the address.
+
+**What it covers.** The front end, feeds, posting a comment and the REST API. `admin-ajax.php`, `admin-post.php` and `xmlrpc.php` are not pages and are left alone.
+
+**Who skips the gate**
+
+| Who | How |
+| --- | --- |
+| Logged-in users | Always, unless `axle_staging_guard_gate_user_allowed` says no. REST requests need a logged-in user too, for example with an application password. A cookie login without a REST nonce counts as not logged in |
+| IP addresses | A list of addresses and CIDR ranges (IPv4 and IPv6). Only `REMOTE_ADDR` is trusted. Behind a proxy or CDN, return the real address from `axle_staging_guard_gate_client_ip` |
+| Paths | A list such as `/health` or `/webhooks/*`. A `*` matches anything. Paths are cleaned first, so `/health/../about` does not count as `/health`. A REST route is matched as `/wp-json/<route>` |
+| Always open | `/robots.txt`, `/favicon.ico`, `/wp-login.php` and `/wp-cron.php` |
+
+**Share links.** Make a link for one person: a name ("For Priya at the client") and a length from 1 to 30 days. The link carries a signed token. Opening it sets a signed, HTTP-only cookie for the length of the link, and sends the visitor to the page they asked for with the token removed. No account is needed. The list shows when each link was last used and how many visits it had. Revoking a link deletes its record, which also ends every cookie it set, on the next page view. The password works the same way: it sets a signed cookie for 12 hours, bound to the password, so changing the password signs everyone out.
+
+**Where it is stored.** In the plugin's settings option: the password as a WordPress password hash, a signing secret, the lists and the links. The link itself is never stored. It is built from the record, so a person who manages the plugin can copy it again.
+
+## Scheduled tasks
+
+On **Tools > Staging Guard > Scheduled tasks**, every WP-Cron task is listed with its owner (the plugin or theme that registered it, when that can be traced), its next run, how often it repeats and a summary of its arguments. Tick the tasks to hold on this copy and save.
+
+**Suggestions.** Tasks whose names contain newsletter, export, sync, feed, renewal or subscription and payment are ticked for you. A suggestion holds nothing until you save, and Site Health asks about suggestions nobody has decided on yet. The patterns have a filter.
+
+**Held means not run.** WP-Cron asks WordPress for the tasks that are due. Held tasks are left out of that answer, so they are never started and never reschedule themselves. They stay on the schedule, which makes Site Health report them as late. That is expected on a copy. The first time a held run is due, it is listed under **Held tasks** with when it was due, its owner and a summary of its arguments: numbers and true or false as they are, text as its length, lists as their size. The values are never kept. Tasks started by `wp cron event run` are held too, because the callbacks of held hooks are taken off for that command. This plugin's own `wp axle-staging-guard hold run` is not held.
+
+**Run once.** The screen and `wp axle-staging-guard hold run <hook>` run a task now, with its own arguments, the way WP-Cron would: a repeating task is rescheduled and a single event is removed. The task may contact the outside service it belongs to, which the screen says before it asks.
+
+**Never held.** `wp_scheduled_delete`, `wp_scheduled_auto_draft_delete`, `delete_expired_transients`, `wp_privacy_delete_old_export_files`, `recovery_mode_clean_expired_keys`, `wp_delete_temp_updater_backups`, this plugin's own clean-up, and any hook starting `wp_privacy_` or `recovery_mode_`. Update checks may be held. `axle_staging_guard_cron_protected_hooks` and `axle_staging_guard_cron_protected_prefixes` change the lists.
 
 ## Email
 
@@ -139,6 +239,10 @@ Everything else is left to the allowlist on purpose: other private network addre
 | `axle_sg_mail` posts (private) | One per stopped email: recipients, subject, what happened and, only if keep-bodies is on, the message. Deleted after 7 days, and never more than 1,000 |
 | `axle_sg_http` posts (private) | One per distinct outgoing request: method, host, masked path, caller, count and first seen. Deleted 7 days after they were last seen, and never more than 1,000 |
 | `axle_staging_guard_lock_notice_dismissed` user meta | Which domain each admin hid the lock warning for |
+| `axle_staging_guard_steps_dismissed` user meta | Whether each admin hid the Get started card |
+| `axle_sg_held` posts (private) | One per held run: task name, when it was due, owner and a summary of its arguments. Deleted after 7 days, and never more than 1,000 |
+| Settings option, gate keys | The password hash, the signing secret, the allowed IPs and paths, and the share links: name, dates, visits and who made it. Links expired for 30 days are removed |
+| `axle_sg_gate_fail_*` transients | Wrong password counters, under a hash of the address, for 15 minutes |
 
 The `axle_staging_guard_purge_log` cron event runs hourly. Uninstalling removes all of it on every site of a multisite network.
 
@@ -151,11 +255,13 @@ The log can hold personal data: email addresses, subjects and, if you turn it on
 - the log takes part in **Tools > Export Personal Data** and **Tools > Erase Personal Data**
 - **Settings > Privacy** gets suggested text for your privacy policy
 
-The request list holds no personal data by design: no query strings, bodies or headers, and path parts that look like email addresses, hashes or keys are masked. It is deleted on the same schedule, and the suggested privacy policy text mentions it, but it needs no export or erase entry. The live site keeps no log at all.
+The request list holds no personal data by design: no query strings, bodies or headers, and path parts that look like email addresses, hashes or keys are masked. It is deleted on the same schedule, and the suggested privacy policy text mentions it, but it needs no export or erase entry. The held task list keeps no values either, only the task name, its owner and a summary of the arguments. The live site keeps no log at all.
+
+The share links hold a name an administrator typed, which can be a person's name, and the ID of the user who made the link. They take part in **Tools > Export Personal Data**, which lists the links a person made, and **Tools > Erase Personal Data**, which clears the name and the maker but keeps the link working. Visitors who get in receive one cookie with a signed token and are not otherwise tracked.
 
 ## Multisite
 
-On a network, only network admins (`manage_network_options`) can see and change Axle Staging Guard, so one site admin on a staging network cannot switch email back on for everyone. Put `WP_ENVIRONMENT_TYPE` or `AXLE_STAGING_GUARD_PRODUCTION_HOSTS` with every mapped domain in wp-config.php, and it covers the whole network.
+On a network, only network admins (`manage_network_options`) can see and change Axle Staging Guard, so one site admin on a staging network cannot switch email back on for everyone. Put `WP_ENVIRONMENT_TYPE` or `AXLE_STAGING_GUARD_PRODUCTION_HOSTS` with every mapped domain in wp-config.php, and it covers the whole network. The password gate, its share links and the held tasks are saved per site, so each site of a network has its own password and its own schedule.
 
 ## WordPress VIP
 

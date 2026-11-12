@@ -8,7 +8,7 @@ Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Stop staging sites from emailing real customers, calling live APIs and showing up in Google. Colours the admin bar so nobody edits the wrong copy.
+Stop staging sites from emailing customers, calling live APIs and showing in Google. Add a password gate and hold risky scheduled tasks.
 
 == Description ==
 
@@ -20,7 +20,9 @@ Every agency has a staging story. A copy of the live database goes to staging, a
 
 A fourth one is quieter: the copy keeps talking to your payment gateway, CRM, Mailchimp list or Zapier webhooks with the live keys it inherited.
 
-Axle Staging Guard prevents all four, on every copy that is not the live site.
+A fifth is the one a client finds out about: someone finds staging.example.com in a certificate log, and the unfinished site is open to anyone with the address.
+
+Axle Staging Guard prevents all five, on every copy that is not the live site.
 
 **On staging, development and local copies it:**
 
@@ -35,7 +37,11 @@ Axle Staging Guard prevents all four, on every copy that is not the live site.
 * Hides the site from search engines with an `X-Robots-Tag` header, a `noindex, nofollow` robots meta tag and a robots.txt that blocks everything, and turns off the XML sitemap.
 * Colours the whole admin bar (orange for staging, blue for development, green for local) and labels it, on the dashboard and on the front end.
 * Adds the environment to every browser tab title, for example "[Staging] Posts", so the right tab is easy to find.
-* Adds a Site Health check that warns when email from a staging copy could still reach real people, or when staging copies of the live site would not be detected.
+* Puts a password in front of the copy. Visitors who are not logged in see a small password screen instead of the site. It is off until you turn it on, and the screen is never cached or indexed. Logged-in users, IP addresses and paths you list (a health check, a webhook) skip it, and wrong passwords lock an address out for a while.
+* Makes share links for the gate: one named link per person ("For Priya at the client"), valid for 1 to 30 days, with the time it was last used in the list. Revoke a link and that person is out on their next page view. No account needed.
+* Lists every scheduled task (WP-Cron) with its owner and next run, and holds the ones you tick on staging, such as a weekly newsletter export or a subscription renewal. Tasks that look risky are ticked for you, but nothing is held until you save. A held task is listed with when it was due, never dropped silently, and you can run it once by hand. WordPress's own clean-up and privacy tasks cannot be held.
+* Adds Site Health checks that warn when email from a staging copy could still reach real people, when staging copies of the live site would not be detected, when a staging copy is open to anyone, and when tasks that look risky still run.
+* Has a Help tab on every screen and works with the keyboard and screen readers.
 
 **On the live site it does nothing.**
 
@@ -76,6 +82,10 @@ Fix the email behaviour per environment, so a database copy cannot change it:
 * `wp axle-staging-guard test-email you@example.com` sends a test email and reports what happened to it.
 * `wp axle-staging-guard http-log` lists blocked and logged outgoing requests.
 * `wp axle-staging-guard test-url https://api.example.com/v1` says what would happen to a request to that URL.
+* `wp axle-staging-guard set mail_mode redirect` changes a setting, and `wp axle-staging-guard clear-log` empties the lists.
+* `wp axle-staging-guard gate on --password=...`, `gate off` and `gate status` control the password gate.
+* `wp axle-staging-guard gate link create "For Priya" --days=7`, `gate link list` and `gate link revoke <id>` manage share links.
+* `wp axle-staging-guard hold list`, `hold add <hook>`, `hold remove <hook>`, `hold run <hook>` and `hold log` manage held scheduled tasks.
 
 **Try it before you install.** [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
 
@@ -113,6 +123,22 @@ It blocks hosts, not modes. `api.stripe.com` and `api.paypal.com` are the same h
 
 Add it under Tools > Staging Guard > "Calls to other services" > Allowed hosts, one per line. `api.example.com` allows that host, and `*.example.com` allows every subdomain (but not example.com itself). You can also set `AXLE_STAGING_GUARD_HTTP_ALLOWED_HOSTS` in wp-config.php, or use the `axle_staging_guard_http_allowed_hosts` filter. "Test a URL" on the same screen shows whether an address would get through.
 
+= Who sees the password screen, and who skips it? =
+
+Visitors who are not logged in. Logged-in users, the IP addresses and ranges you list, and the paths you list skip it. The login screen, WP-Cron and robots.txt always stay open. REST API requests need a logged-in user, for example with an application password. The gate covers the front end, feeds, posting a comment and the REST API. It does not cover admin-ajax.php, admin-post.php or xmlrpc.php. It never runs on the live site.
+
+= How does a share link work? =
+
+Make one under Tools > Staging Guard > Password gate: type who it is for and pick 1 to 30 days. Send the link to that person. Opening it lets them in without the password and without an account, and sends them to the page they asked for. Revoke the link and their access ends on their next page view. Changing the gate password signs out everyone who used the password, but not people with a link.
+
+= Does a held scheduled task run later? =
+
+No. A held task stays on the schedule but is never started on that copy, and it is listed with when it was due. Site Health may report it as late, which is expected. Run it once by hand from Tools > Staging Guard > Scheduled tasks or with `wp axle-staging-guard hold run`. Tasks that WordPress needs to stay healthy cannot be held.
+
+= Does the gate keep personal data? =
+
+The names you give share links, and who made each link, which a person can have exported or erased from the WordPress privacy tools. A visitor who gets in receives one cookie with a signed token. Wrong passwords are counted against a hash of the address for a few minutes.
+
 = Does it affect production? =
 
 No. On the live site requests are never blocked, changed or recorded, whatever the settings say, and there is no list.
@@ -133,6 +159,9 @@ Code that does not go through the WordPress HTTP API: a PHP SDK that opens its o
 
 1. The coloured admin bar on a staging copy.
 2. Tools > Staging Guard with the email log.
+3. The password gate screen visitors see.
+4. Share links, each named and timed, with when it was last used.
+5. Scheduled tasks, with the ones to hold on staging.
 
 == Changelog ==
 

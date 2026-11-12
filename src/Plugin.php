@@ -11,6 +11,14 @@ use AryanX\Axle\StagingGuard\Admin\AdminBar;
 use AryanX\Axle\StagingGuard\Admin\LockNotice;
 use AryanX\Axle\StagingGuard\Admin\SettingsPage;
 use AryanX\Axle\StagingGuard\Cli\Command;
+use AryanX\Axle\StagingGuard\Cli\GateCommand;
+use AryanX\Axle\StagingGuard\Cli\HoldCommand;
+use AryanX\Axle\StagingGuard\Cli\LinkCommand;
+use AryanX\Axle\StagingGuard\Cron\Hold;
+use AryanX\Axle\StagingGuard\Cron\Log as CronLog;
+use AryanX\Axle\StagingGuard\Cron\Tasks;
+use AryanX\Axle\StagingGuard\Gate\Gate;
+use AryanX\Axle\StagingGuard\Gate\Links;
 use AryanX\Axle\StagingGuard\Health\SiteHealth;
 use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Http\Log as HttpLog;
@@ -65,6 +73,20 @@ final class Plugin {
 	private HttpGuard $http;
 
 	/**
+	 * The password gate.
+	 *
+	 * @var Gate
+	 */
+	private Gate $gate;
+
+	/**
+	 * Holds scheduled tasks.
+	 *
+	 * @var Hold
+	 */
+	private Hold $hold;
+
+	/**
 	 * Runs once when the plugin is activated.
 	 *
 	 * A fresh install starts with outgoing requests set to "log only": nothing
@@ -106,6 +128,8 @@ final class Plugin {
 		$this->environment = new Environment( $this->settings );
 		$this->mail        = new Guard( $this->settings, $this->environment, new Log( $this->settings ) );
 		$this->http        = new HttpGuard( $this->settings, $this->environment, new HttpLog( $this->mail->log() ) );
+		$this->gate        = new Gate( $this->settings, $this->environment, new Links( $this->settings ) );
+		$this->hold        = new Hold( $this->settings, new Tasks( $this->settings ), new CronLog( $this->mail->log() ) );
 	}
 
 	/**
@@ -124,15 +148,22 @@ final class Plugin {
 		$services = array(
 			$this->mail->log(),
 			$this->http->log(),
-			new SettingsPage( $this->settings, $this->environment, $this->mail, $this->http ),
-			new SiteHealth( $this->settings, $this->environment, $this->mail, $this->http ),
+			$this->hold->log(),
+			$this->gate->links(),
+			new SettingsPage( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold ),
+			new SiteHealth( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold ),
 			new LockNotice( $this->environment ),
-			new Abilities( $this->settings, $this->environment, $this->mail, $this->http ),
+			new Abilities( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold ),
 		);
 
 		if ( $this->environment->is_guarded() ) {
 			$services[] = $this->mail;
 			$services[] = $this->http;
+			$services[] = $this->hold;
+			// Registered while guarded only. The gate then checks the switch and the password itself.
+			if ( $this->settings->get( 'gate_enabled' ) || has_filter( 'axle_staging_guard_gate_enabled' ) ) {
+				$services[] = $this->gate;
+			}
 			$services[] = new AdminBar( $this->environment, $this->mail );
 			if ( $this->settings->get( 'noindex' ) ) {
 				$services[] = new Robots();
@@ -145,6 +176,9 @@ final class Plugin {
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			\WP_CLI::add_command( 'axle-staging-guard', new Command( $this->settings, $this->environment, $this->mail, $this->http ) );
+			\WP_CLI::add_command( 'axle-staging-guard gate', new GateCommand( $this->settings, $this->gate ) );
+			\WP_CLI::add_command( 'axle-staging-guard gate link', new LinkCommand( $this->gate ) );
+			\WP_CLI::add_command( 'axle-staging-guard hold', new HoldCommand( $this->settings, $this->hold ) );
 		}
 	}
 }

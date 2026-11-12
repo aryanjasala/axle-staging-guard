@@ -7,7 +7,9 @@
 
 namespace AryanX\Axle\StagingGuard\Admin;
 
+use AryanX\Axle\StagingGuard\Cron\Hold;
 use AryanX\Axle\StagingGuard\Environment;
+use AryanX\Axle\StagingGuard\Gate\Gate;
 use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Http\Rules as HttpRules;
 use AryanX\Axle\StagingGuard\Mail\Guard;
@@ -19,13 +21,18 @@ use const AryanX\Axle\StagingGuard\VERSION;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Status, settings, production lock, test email, test URL and the stopped email and request lists.
+ * Status, settings, production lock, test email, test URL and the stopped email and request lists,
+ * with tabs for the password gate and the scheduled tasks.
  */
 final class SettingsPage implements Service {
 
 	public const SLUG = 'axle-staging-guard';
 
 	private const ACTION = 'axle_staging_guard';
+
+	public const UNDO_ACTION = 'axle_staging_guard_undo';
+
+	private const STEPS_META = 'axle_staging_guard_steps_dismissed';
 
 	/**
 	 * Saved settings.
@@ -56,18 +63,52 @@ final class SettingsPage implements Service {
 	private HttpGuard $http;
 
 	/**
+	 * The password gate.
+	 *
+	 * @var Gate
+	 */
+	private Gate $gate;
+
+	/**
+	 * Holds scheduled tasks.
+	 *
+	 * @var Hold
+	 */
+	private Hold $hold;
+
+	/**
+	 * The Password gate tab.
+	 *
+	 * @var GateTab
+	 */
+	private GateTab $gate_tab;
+
+	/**
+	 * The Scheduled tasks tab.
+	 *
+	 * @var TasksTab
+	 */
+	private TasksTab $tasks_tab;
+
+	/**
 	 * Sets up the screen.
 	 *
 	 * @param Settings    $settings    Saved settings.
 	 * @param Environment $environment Environment detection.
 	 * @param Guard       $mail        Email guard.
 	 * @param HttpGuard   $http        Outgoing request guard.
+	 * @param Gate        $gate        The password gate.
+	 * @param Hold        $hold        Holds scheduled tasks.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
 		$this->http        = $http;
+		$this->gate        = $gate;
+		$this->hold        = $hold;
+		$this->gate_tab    = new GateTab( $settings, $environment, $gate );
+		$this->tasks_tab   = new TasksTab( $settings, $environment, $hold );
 	}
 
 	/**
@@ -76,6 +117,9 @@ final class SettingsPage implements Service {
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'add_page' ) );
 		add_action( 'admin_post_' . self::ACTION, array( $this, 'handle_form' ) );
+		add_action( 'admin_post_' . self::UNDO_ACTION, array( $this, 'handle_undo' ) );
+		$this->gate_tab->register();
+		$this->tasks_tab->register();
 		add_filter( 'plugin_action_links_' . plugin_basename( PLUGIN_FILE ), array( $this, 'add_settings_link' ) );
 	}
 
@@ -110,7 +154,69 @@ final class SettingsPage implements Service {
 
 		if ( $hook ) {
 			add_action( "admin_print_styles-{$hook}", array( $this, 'enqueue_styles' ) );
+			add_action( "admin_print_scripts-{$hook}", array( $this, 'enqueue_scripts' ) );
+			add_action( "load-{$hook}", array( $this, 'add_help' ) );
 		}
+	}
+
+	/**
+	 * The tab being shown: settings, gate or tasks.
+	 *
+	 * @return string
+	 */
+	private function current_tab(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Chooses which tab to show; nothing is changed.
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'settings';
+
+		return in_array( $tab, array( 'settings', 'gate', 'tasks' ), true ) ? $tab : 'settings';
+	}
+
+	/**
+	 * Adds the Help tabs for the tab being shown.
+	 */
+	public function add_help(): void {
+		switch ( $this->current_tab() ) {
+			case 'gate':
+				AxleUi::help_tabs( GateTab::help() );
+				return;
+
+			case 'tasks':
+				AxleUi::help_tabs( TasksTab::help() );
+				return;
+		}
+
+		AxleUi::help_tabs(
+			array(
+				array(
+					'id'      => 'overview',
+					'title'   => __( 'Overview', 'axle-staging-guard' ),
+					'content' => '<p>' . esc_html__( 'Staging Guard makes a copy of your site safe to work on. On any copy that is not the live site it stops email from reaching real people, can stop calls to other services, asks search engines to stay away and labels the admin bar. On the live site it does nothing.', 'axle-staging-guard' ) . '</p>',
+				),
+				array(
+					'id'      => 'lock',
+					'title'   => __( 'Production lock', 'axle-staging-guard' ),
+					'content' => '<p>' . esc_html__( 'WordPress cannot tell a copy from the live site unless you say so. Lock production once, on the live site. Every copy of its database on another domain is then treated as staging, with no change to wp-config.php.', 'axle-staging-guard' ) . '</p>',
+				),
+				array(
+					'id'      => 'email',
+					'title'   => __( 'Email', 'axle-staging-guard' ),
+					'content' => '<p>' . esc_html__( 'Blocking is the safe choice. Redirect sends every email to one test address. The "always deliver to" list lets your own team receive real email. Stopped email is listed at the bottom, and message bodies are only kept if you turn that on.', 'axle-staging-guard' ) . '</p>',
+				),
+				array(
+					'id'      => 'requests',
+					'title'   => __( 'Calls to other services', 'axle-staging-guard' ),
+					'content' => '<p>' . esc_html__( 'Start with log only to see which services this site calls. Then block everything except the hosts you list. Use Test a URL to check what would happen to an address before anything is sent.', 'axle-staging-guard' ) . '</p>',
+				),
+			)
+		);
+	}
+
+	/**
+	 * Screen script: copy buttons, in-place confirm steps and live announcements.
+	 */
+	public function enqueue_scripts(): void {
+		wp_enqueue_script( 'axle-staging-guard-admin', plugins_url( 'assets/admin.js', PLUGIN_FILE ), array( 'wp-a11y', 'wp-i18n', 'wp-hooks' ), VERSION, true );
+		wp_set_script_translations( 'axle-staging-guard-admin', 'axle-staging-guard' );
 	}
 
 	/**
@@ -134,20 +240,65 @@ final class SettingsPage implements Service {
 	}
 
 	/**
-	 * Prints the screen.
+	 * Prints the screen: header, tabs and the tab being shown.
 	 */
 	public function render(): void {
-		$guarded = $this->environment->is_guarded();
-		$policy  = $this->mail->policy();
-		$log     = $this->mail->log()->all();
-		$today   = $this->mail->log()->count_since( time() - DAY_IN_SECONDS );
-		$tones   = array(
+		$tab   = $this->current_tab();
+		$tones = array(
 			'production'  => 'neutral',
 			'staging'     => 'warning',
 			'development' => 'info',
 			'local'       => 'good',
 		);
-		$tone    = $tones[ $this->environment->type() ] ?? 'neutral';
+		$tone  = $tones[ $this->environment->type() ] ?? 'neutral';
+		?>
+		<div class="wrap axle-ui asg-page">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Staging Guard', 'axle-staging-guard' ); ?></h1>
+			<span class="axle-status"><span class="axle-badge axle-badge--<?php echo esc_attr( $tone ); ?>"><?php echo esc_html( $this->environment->label() ); ?></span></span>
+			<hr class="wp-header-end">
+
+			<nav class="nav-tab-wrapper" aria-label="<?php esc_attr_e( 'Staging Guard sections', 'axle-staging-guard' ); ?>">
+				<?php
+				$tabs = array(
+					'settings' => __( 'Guards', 'axle-staging-guard' ),
+					'gate'     => __( 'Password gate', 'axle-staging-guard' ),
+					'tasks'    => __( 'Scheduled tasks', 'axle-staging-guard' ),
+				);
+				foreach ( $tabs as $slug => $label ) {
+					printf(
+						'<a href="%1$s" class="nav-tab%2$s"%3$s>%4$s</a>',
+						esc_url( add_query_arg( 'tab', $slug, admin_url( 'tools.php?page=' . self::SLUG ) ) ),
+						$slug === $tab ? ' nav-tab-active' : '',
+						$slug === $tab ? ' aria-current="page"' : '',
+						esc_html( $label )
+					);
+				}
+				?>
+			</nav>
+
+			<?php
+			if ( 'gate' === $tab ) {
+				$this->gate_tab->render();
+			} elseif ( 'tasks' === $tab ) {
+				$this->tasks_tab->render();
+			} else {
+				$this->render_overview();
+			}
+			?>
+
+			<?php AxleUi::footer(); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Prints the first tab: what the guards do and their settings.
+	 */
+	private function render_overview(): void {
+		$guarded = $this->environment->is_guarded();
+		$policy  = $this->mail->policy();
+		$log     = $this->mail->log()->all();
+		$today   = $this->mail->log()->count_since( time() - DAY_IN_SECONDS );
 		$mail_on = $guarded && 'allow' !== $policy['mode'];
 		$http    = $this->http->policy();
 		$http_in = $this->http->log()->count_since( time() - DAY_IN_SECONDS );
@@ -158,14 +309,11 @@ final class SettingsPage implements Service {
 		);
 		$hide_on = $guarded && $this->settings->get( 'noindex' );
 		?>
-		<div class="wrap axle-ui asg-page">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Staging Guard', 'axle-staging-guard' ); ?></h1>
-			<span class="axle-status"><span class="axle-badge axle-badge--<?php echo esc_attr( $tone ); ?>"><?php echo esc_html( $this->environment->label() ); ?></span></span>
-			<hr class="wp-header-end">
-
 			<?php $this->render_notices(); ?>
 
 			<p class="axle-intro"><?php esc_html_e( 'On every copy of your site that is not the live one, this stops email from reaching real people, can stop or record calls to other services such as payment gateways and CRMs, asks search engines to stay away and labels the admin bar. On the live site it does nothing.', 'axle-staging-guard' ); ?></p>
+
+			<?php $this->render_steps(); ?>
 
 			<div class="axle-grid asg-states">
 				<section class="axle-card asg-state">
@@ -233,7 +381,7 @@ final class SettingsPage implements Service {
 						<?php $this->render_settings_form( $policy ); ?>
 					</section>
 
-					<section class="axle-card asg-http">
+					<section class="axle-card asg-http" id="asg-http">
 						<h2 class="axle-card__title"><?php esc_html_e( 'Calls to other services', 'axle-staging-guard' ); ?></h2>
 						<?php $this->render_http_form( $http ); ?>
 					</section>
@@ -242,7 +390,7 @@ final class SettingsPage implements Service {
 				<div class="asg-side">
 					<?php if ( 'constant' !== $this->environment->source() ) : ?>
 						<section class="axle-card">
-							<h2 class="axle-card__title"><?php esc_html_e( 'Production lock', 'axle-staging-guard' ); ?></h2>
+							<h2 class="axle-card__title" id="asg-lock"><?php esc_html_e( 'Production lock', 'axle-staging-guard' ); ?></h2>
 							<p><?php esc_html_e( 'Set this once on the live site. Every copy of its database on another domain is then treated as staging, with no change to wp-config.php.', 'axle-staging-guard' ); ?></p>
 							<?php
 							if ( $this->environment->is_locked() ) {
@@ -286,9 +434,6 @@ final class SettingsPage implements Service {
 			<?php $this->render_log( $log ); ?>
 
 			<?php $this->render_http_log( $http ); ?>
-
-			<?php AxleUi::footer(); ?>
-		</div>
 		<?php
 	}
 
@@ -384,6 +529,7 @@ final class SettingsPage implements Service {
 					<p><?php esc_html_e( 'No email has been stopped yet. Email that this copy blocks or redirects is listed here.', 'axle-staging-guard' ); ?></p>
 				</div>
 			<?php else : ?>
+				<div class="axle-scroll" tabindex="0" role="region" aria-label="<?php esc_attr_e( 'Stopped email', 'axle-staging-guard' ); ?>">
 				<table class="widefat striped">
 					<thead>
 						<tr>
@@ -397,12 +543,7 @@ final class SettingsPage implements Service {
 						<?php foreach ( $log as $entry ) : ?>
 							<tr class="asg-log__row">
 								<td>
-									<time datetime="<?php echo esc_attr( gmdate( 'c', (int) $entry['time'] ) ); ?>" title="<?php echo esc_attr( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $entry['time'] ) ); ?>">
-										<?php
-										/* translators: %s: time ago, e.g. "5 minutes". */
-										echo esc_html( sprintf( __( '%s ago', 'axle-staging-guard' ), human_time_diff( (int) $entry['time'] ) ) );
-										?>
-									</time>
+									<?php echo AxleUi::relative_time( (int) $entry['time'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time(). ?>
 								</td>
 								<td><?php echo esc_html( $entry['to'] ); ?></td>
 								<td>
@@ -430,6 +571,7 @@ final class SettingsPage implements Service {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				</div>
 			<?php endif; ?>
 		</section>
 
@@ -437,7 +579,20 @@ final class SettingsPage implements Service {
 			<section class="axle-card axle-card--danger">
 				<h2 class="axle-card__title"><?php esc_html_e( 'Clear the email list', 'axle-staging-guard' ); ?></h2>
 				<p><?php esc_html_e( 'Removes every entry from the list above, including saved message bodies. The emails themselves are not affected. This cannot be undone.', 'axle-staging-guard' ); ?></p>
-				<?php $this->render_button( 'clear_log', __( 'Clear list', 'axle-staging-guard' ), 'danger', __( 'Remove every entry from the stopped email list? This cannot be undone.', 'axle-staging-guard' ) ); ?>
+				<?php
+				Confirm::render(
+					array(
+						'id'      => 'asg-clear-mail',
+						'action'  => self::ACTION,
+						'fields'  => array( 'task' => 'clear_log' ),
+						'open'    => __( 'Clear list', 'axle-staging-guard' ),
+						'message' => __( 'This removes every stopped email from the list, including saved message bodies. The emails themselves are not affected. It cannot be undone.', 'axle-staging-guard' ),
+						'submit'  => __( 'Clear list', 'axle-staging-guard' ),
+						'cancel'  => __( 'Keep the list', 'axle-staging-guard' ),
+						'class'   => 'button axle-button--danger',
+					)
+				);
+				?>
 			</section>
 		<?php endif; ?>
 		<?php
@@ -521,7 +676,6 @@ final class SettingsPage implements Service {
 			'mu-plugin' => __( 'Must-use plugin', 'axle-staging-guard' ),
 			'theme'     => __( 'Theme', 'axle-staging-guard' ),
 		);
-		$format  = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
 		?>
 		<section class="axle-card asg-log asg-http-log">
 			<h2 class="axle-card__title"><?php esc_html_e( 'Stopped and recorded requests', 'axle-staging-guard' ); ?></h2>
@@ -538,6 +692,7 @@ final class SettingsPage implements Service {
 					</p>
 				</div>
 			<?php else : ?>
+				<div class="axle-scroll" tabindex="0" role="region" aria-label="<?php esc_attr_e( 'Stopped and recorded requests', 'axle-staging-guard' ); ?>">
 				<table class="widefat striped">
 					<thead>
 						<tr>
@@ -555,16 +710,13 @@ final class SettingsPage implements Service {
 							?>
 							<tr class="asg-http-row">
 								<td>
-									<?php
-									/* translators: %s: date and time. */
-									$title = sprintf( __( 'First seen %s', 'axle-staging-guard' ), wp_date( $format, (int) $entry['first'] ) );
-									?>
-									<time datetime="<?php echo esc_attr( gmdate( 'c', (int) $entry['time'] ) ); ?>" title="<?php echo esc_attr( wp_date( $format, (int) $entry['time'] ) . '. ' . $title ); ?>">
+									<?php echo AxleUi::relative_time( (int) $entry['time'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time(). ?>
+									<br><small>
 										<?php
-										/* translators: %s: time ago, e.g. "5 minutes". */
-										echo esc_html( sprintf( __( '%s ago', 'axle-staging-guard' ), human_time_diff( (int) $entry['time'] ) ) );
+										/* translators: %s: how long ago, such as "2 hours ago". */
+										printf( esc_html__( 'First seen %s', 'axle-staging-guard' ), AxleUi::relative_time( (int) $entry['first'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time().
 										?>
-									</time>
+									</small>
 								</td>
 								<td><code class="asg-http-url"><?php echo esc_html( $entry['method'] . ' ' . $entry['host'] . $entry['path'] ); ?></code></td>
 								<td>
@@ -582,6 +734,7 @@ final class SettingsPage implements Service {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				</div>
 				<p class="description">
 					<?php
 					echo esc_html(
@@ -600,7 +753,20 @@ final class SettingsPage implements Service {
 			<section class="axle-card axle-card--danger">
 				<h2 class="axle-card__title"><?php esc_html_e( 'Clear the request list', 'axle-staging-guard' ); ?></h2>
 				<p><?php esc_html_e( 'Removes every entry from the request list above. The requests themselves are not affected. This cannot be undone.', 'axle-staging-guard' ); ?></p>
-				<?php $this->render_button( 'clear_http_log', __( 'Clear request list', 'axle-staging-guard' ), 'danger', __( 'Remove every entry from the request list? This cannot be undone.', 'axle-staging-guard' ) ); ?>
+				<?php
+				Confirm::render(
+					array(
+						'id'      => 'asg-clear-http',
+						'action'  => self::ACTION,
+						'fields'  => array( 'task' => 'clear_http_log' ),
+						'open'    => __( 'Clear request list', 'axle-staging-guard' ),
+						'message' => __( 'This removes every stopped or recorded request from the list. The requests themselves are not affected. It cannot be undone.', 'axle-staging-guard' ),
+						'submit'  => __( 'Clear request list', 'axle-staging-guard' ),
+						'cancel'  => __( 'Keep the list', 'axle-staging-guard' ),
+						'class'   => 'button axle-button--danger',
+					)
+				);
+				?>
 			</section>
 		<?php endif; ?>
 		<?php
@@ -618,20 +784,167 @@ final class SettingsPage implements Service {
 	/**
 	 * Prints a one-button form that runs a task.
 	 *
-	 * @param string $task    Task name.
-	 * @param string $label   Button text.
-	 * @param string $style   secondary or danger.
-	 * @param string $confirm Question to ask first, for actions that cannot be undone.
+	 * @param string $task  Task name.
+	 * @param string $label Button text.
 	 */
-	private function render_button( string $task, string $label, string $style = 'secondary', string $confirm = '' ): void {
+	private function render_button( string $task, string $label ): void {
 		?>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-button-form">
 			<?php wp_nonce_field( self::ACTION ); ?>
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
 			<input type="hidden" name="task" value="<?php echo esc_attr( $task ); ?>">
-			<button type="submit" class="<?php echo esc_attr( 'danger' === $style ? 'button axle-button--danger' : 'button' ); ?>"<?php echo $confirm ? ' onclick="' . esc_attr( 'return window.confirm( ' . wp_json_encode( $confirm ) . ' );' ) . '"' : ''; ?>><?php echo esc_html( $label ); ?></button>
+			<button type="submit" class="button"><?php echo esc_html( $label ); ?></button>
 		</form>
 		<?php
+	}
+
+	/**
+	 * Prints the "Get started" card until every step is done or the user dismisses it.
+	 */
+	private function render_steps(): void {
+		$dismissed = (array) get_user_meta( get_current_user_id(), self::STEPS_META, true );
+		if ( in_array( 'overview', $dismissed, true ) ) {
+			return;
+		}
+
+		$tab_url = static function ( string $tab ): string {
+			return add_query_arg( 'tab', $tab, admin_url( 'tools.php?page=' . self::SLUG ) );
+		};
+		$steps   = array(
+			array(
+				'title' => __( 'Tell Staging Guard which copy is the live site', 'axle-staging-guard' ),
+				'text'  => __( 'Lock production once, on the live site. Without it, a copy of the site cannot tell it is a copy.', 'axle-staging-guard' ),
+				'done'  => 'default' !== $this->environment->source(),
+				'url'   => '#asg-lock',
+				'label' => __( 'Set the lock', 'axle-staging-guard' ),
+			),
+			array(
+				'title' => __( 'See which services this site calls', 'axle-staging-guard' ),
+				'text'  => __( 'Keep outgoing requests on log only for a day, then block everything except the hosts you list.', 'axle-staging-guard' ),
+				'done'  => 'block' === $this->http->policy()['mode'] || $this->http->log()->count_since( 0 ) > 0,
+				'url'   => '#asg-http',
+				'label' => __( 'Open request settings', 'axle-staging-guard' ),
+			),
+			array(
+				'title' => __( 'Put a password in front of the copy', 'axle-staging-guard' ),
+				'text'  => __( 'Keep the public out and let a client in with one link.', 'axle-staging-guard' ),
+				'done'  => $this->gate->is_active(),
+				'url'   => $tab_url( 'gate' ),
+				'label' => __( 'Set up the gate', 'axle-staging-guard' ),
+			),
+		);
+
+		if ( ! in_array( false, wp_list_pluck( $steps, 'done' ), true ) ) {
+			return;
+		}
+		?>
+		<section class="axle-card asg-steps" aria-labelledby="asg-steps-title">
+			<h2 class="axle-card__title" id="asg-steps-title"><?php esc_html_e( 'Get started', 'axle-staging-guard' ); ?></h2>
+			<ol class="axle-steps">
+				<?php foreach ( $steps as $step ) : ?>
+					<li class="axle-step">
+						<div class="axle-step__body">
+							<strong class="axle-step__title"><?php echo esc_html( $step['title'] ); ?></strong>
+							<p><?php echo esc_html( $step['text'] ); ?></p>
+						</div>
+						<?php if ( $step['done'] ) : ?>
+							<span class="axle-badge axle-badge--good"><?php esc_html_e( 'Done', 'axle-staging-guard' ); ?></span>
+						<?php else : ?>
+							<a class="button" href="<?php echo esc_url( $step['url'] ); ?>"><?php echo esc_html( $step['label'] ); ?></a>
+						<?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ol>
+			<?php $this->render_button( 'dismiss_steps', __( 'Hide this card', 'axle-staging-guard' ) ); ?>
+		</section>
+		<?php
+	}
+
+	/**
+	 * The Undo link for a notice.
+	 *
+	 * @param string $what What to undo: gate_on, gate_off, lock, unlock or tasks. Anything else gives no link.
+	 * @param string $tab  Tab to return to.
+	 * @return string Escaped HTML, or an empty string.
+	 */
+	public static function undo_link( string $what, string $tab ): string {
+		if ( ! in_array( $what, array( 'gate_on', 'gate_off', 'lock', 'unlock', 'tasks' ), true ) ) {
+			return '';
+		}
+
+		return sprintf(
+			'<a href="%1$s">%2$s</a>',
+			esc_url(
+				wp_nonce_url(
+					add_query_arg(
+						array(
+							'action' => self::UNDO_ACTION,
+							'what'   => $what,
+							'tab'    => $tab,
+						),
+						admin_url( 'admin-post.php' )
+					),
+					self::UNDO_ACTION
+				)
+			),
+			esc_html__( 'Undo', 'axle-staging-guard' )
+		);
+	}
+
+	/**
+	 * Undoes the last change that offered an Undo link.
+	 */
+	public function handle_undo(): void {
+		if ( ! current_user_can( self::capability() ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to change these settings.', 'axle-staging-guard' ), 403 );
+		}
+
+		check_admin_referer( self::UNDO_ACTION );
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Checked above.
+		$what = isset( $_GET['what'] ) ? sanitize_key( wp_unslash( $_GET['what'] ) ) : '';
+		$tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'settings';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$args = array( 'tab' => $tab );
+
+		switch ( $what ) {
+			case 'gate_on':
+				$result = $this->gate->enable();
+				if ( is_wp_error( $result ) ) {
+					$args['sg_error'] = $result->get_error_code();
+				}
+				break;
+
+			case 'gate_off':
+				$this->gate->disable();
+				break;
+
+			case 'lock':
+				$this->environment->lock();
+				break;
+
+			case 'unlock':
+				$this->environment->unlock();
+				break;
+
+			case 'tasks':
+				$state = get_transient( TasksTab::undo_key() );
+				if ( is_array( $state ) && 2 === count( $state ) ) {
+					delete_transient( TasksTab::undo_key() );
+					$this->hold->save( (array) $state[0], array() );
+					$this->settings->update( array( 'cron_decided' => (array) $state[1] ), false );
+				} else {
+					$args['sg_error'] = 'nothing_to_undo';
+				}
+				break;
+		}
+
+		if ( ! isset( $args['sg_error'] ) ) {
+			$args['sg_message'] = 'undone';
+		}
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'tools.php?page=' . self::SLUG ) ) );
+		exit;
 	}
 
 	/**
@@ -650,9 +963,12 @@ final class SettingsPage implements Service {
 			'cleared'      => __( 'Email list cleared.', 'axle-staging-guard' ),
 			'http_saved'   => __( 'Request settings saved.', 'axle-staging-guard' ),
 			'http_cleared' => __( 'Request list cleared.', 'axle-staging-guard' ),
+			'undone'       => __( 'Undone.', 'axle-staging-guard' ),
+			'steps_hidden' => __( 'The Get started card is hidden for you.', 'axle-staging-guard' ),
 		);
 		$errors   = array(
-			'bad_url' => __( 'That is not a valid http or https address.', 'axle-staging-guard' ),
+			'bad_url'         => __( 'That is not a valid http or https address.', 'axle-staging-guard' ),
+			'nothing_to_undo' => __( 'There is nothing to undo any more. The saved choice was kept for ten minutes.', 'axle-staging-guard' ),
 		);
 		$tests    = array(
 			'blocked'        => __( 'Test email blocked. It is listed under Stopped email.', 'axle-staging-guard' ),
@@ -663,7 +979,13 @@ final class SettingsPage implements Service {
 		);
 
 		if ( isset( $messages[ $message ] ) ) {
-			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( $messages[ $message ] ) );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only value set by our own redirect.
+			$undo = isset( $_GET['sg_undo'] ) ? self::undo_link( sanitize_key( wp_unslash( $_GET['sg_undo'] ) ), 'settings' ) : '';
+			printf(
+				'<div class="notice notice-success is-dismissible asg-notice" role="status"><p>%1$s%2$s</p></div>',
+				esc_html( $messages[ $message ] ),
+				'' !== $undo ? ' ' . $undo : '' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built and escaped by undo_link().
+			);
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only flag set by our own redirect.
@@ -671,18 +993,20 @@ final class SettingsPage implements Service {
 		if ( is_array( $checked ) ) {
 			delete_transient( $this->url_result_key() );
 			printf(
-				'<div class="notice notice-info is-dismissible asg-url-result" role="status"><p><strong>%1$s</strong> %2$s</p></div>',
+				'<div class="notice notice-info is-dismissible asg-notice asg-url-result" role="status"><p><strong>%1$s</strong> %2$s</p></div>',
 				esc_html( sprintf( /* translators: %s: address without query string. */ __( 'Result for %s:', 'axle-staging-guard' ), $checked['host'] . $checked['path'] ) ),
 				esc_html( $checked['explanation'] )
 			);
 		}
 
-		if ( isset( $errors[ $message ] ) ) {
-			printf( '<div class="notice notice-error is-dismissible" role="alert"><p>%s</p></div>', esc_html( $errors[ $message ] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only value set by our own redirect.
+		$error = isset( $_GET['sg_error'] ) ? sanitize_key( wp_unslash( $_GET['sg_error'] ) ) : $message;
+		if ( isset( $errors[ $error ] ) ) {
+			printf( '<div class="notice notice-error is-dismissible asg-notice" role="alert"><p>%s</p></div>', esc_html( $errors[ $error ] ) );
 		}
 
 		if ( isset( $tests[ $result ] ) ) {
-			printf( '<div class="notice notice-%s is-dismissible asg-test-result"><p>%s</p></div>', 'failed' === $result ? 'error' : 'info', esc_html( $tests[ $result ] ) );
+			printf( '<div class="notice notice-%s is-dismissible asg-notice asg-test-result" role="status"><p>%s</p></div>', 'failed' === $result ? 'error' : 'info', esc_html( $tests[ $result ] ) );
 		}
 	}
 
@@ -703,11 +1027,13 @@ final class SettingsPage implements Service {
 			case 'lock':
 				$this->environment->lock();
 				$args['sg_message'] = 'locked';
+				$args['sg_undo']    = 'unlock';
 				break;
 
 			case 'unlock':
 				$this->environment->unlock();
 				$args['sg_message'] = 'unlocked';
+				$args['sg_undo']    = 'lock';
 				break;
 
 			case 'clear_log':
@@ -718,6 +1044,13 @@ final class SettingsPage implements Service {
 			case 'clear_http_log':
 				$this->http->log()->clear();
 				$args['sg_message'] = 'http_cleared';
+				break;
+
+			case 'dismiss_steps':
+				$dismissed   = array_filter( (array) get_user_meta( get_current_user_id(), self::STEPS_META, true ) );
+				$dismissed[] = 'overview';
+				update_user_meta( get_current_user_id(), self::STEPS_META, array_values( array_unique( $dismissed ) ) );
+				$args['sg_message'] = 'steps_hidden';
 				break;
 
 			case 'test_url':
