@@ -24,7 +24,7 @@
 
 ---
 
-Every agency has a staging story: a copy of the live database goes to staging and emails every customer, Google indexes it, or someone spends an hour editing it thinking it was live. Axle Staging Guard prevents all three on every copy that is not production, and does nothing on the live site. It can also stop the copy from calling payment gateways, CRMs and webhooks with live keys.
+Every agency has a staging story: a copy of the live database goes to staging and emails every customer, Google indexes it, or someone spends an hour editing it thinking it was live. Axle Staging Guard prevents all three on every copy that is not production, and does nothing on the live site. It can also stop the copy from calling payment gateways, CRMs and webhooks with live keys, put a password in front of the copy so only the people you choose can see it, and hold the scheduled tasks that would reach the real world, such as a weekly newsletter export.
 
 > [!NOTE]
 > Free and open source under the GPL. No pro version, no upsells, no ads in wp-admin, no tracking. And it stays that way.
@@ -39,9 +39,12 @@ Every agency has a staging story: a copy of the live database goes to staging an
 - **Outgoing API calls**: block everything except allowed hosts, or log only, for requests made through the WordPress HTTP API. A blocked call fails with a clear error, never a fake success
 - **Request list** with method, host, path, the plugin that made the call and how often, with secrets and query strings left out, and a **Test a URL** button
 - **Search engines**: `X-Robots-Tag` header, `noindex, nofollow` meta tag, a blocking robots.txt, no sitemap
+- **Password gate**: visitors who are not logged in see a small password screen (401, never cached, never indexed). Off by default, never on the live site. Skip it by IP range or path, with a lockout after wrong passwords
+- **Share links**: a named, timed link (1 to 30 days) that lets one person in without the password. The list shows when each was last used, and a revoked link ends access on the next page view
+- **Scheduled tasks**: see every WP-Cron task with its owner and next run, tick the ones to hold on staging, and run one by hand. Held tasks are listed, never silently dropped
 - **Admin bar** colored by environment, and `[Staging]` at the start of every browser tab title
 - **Production lock**: mark the live site once, and every database copy on another domain counts as staging
-- **Site Health** check that warns when email could still reach real people
+- **Site Health** checks that warn when email could still reach real people, when a staging copy is open to anyone, and when risky tasks still run
 
 ## Install
 
@@ -77,13 +80,20 @@ It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, other
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-1.png" alt="The coloured admin bar on a staging copy"><br><sub>The coloured admin bar on a staging copy</sub></td>
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Staging Guard with the email log"><br><sub>Tools > Staging Guard with the email log</sub></td>
   </tr>
+  <tr>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-3.png" alt="The password gate screen visitors see"><br><sub>The password gate screen visitors see</sub></td>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-4.png" alt="Share links, each named and timed, with when it was last used"><br><sub>Share links, each named and timed, with when it was last used</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-5.png" alt="Scheduled tasks, with the ones to hold on staging"><br><sub>Scheduled tasks, with the ones to hold on staging</sub></td>
+  </tr>
 </table>
 
 ## Documentation
 
 | Doc | What it covers |
 | --- | --- |
-| [Reference](docs/REFERENCE.md) | Environment detection, constants, the filter and WP-CLI |
+| [Reference](docs/REFERENCE.md) | Environment detection, constants, hooks, the password gate, scheduled tasks, abilities and WP-CLI |
 | [Development](docs/DEVELOPMENT.md) | Local setup, commands and tests |
 | [Contributing](docs/CONTRIBUTING.md) | Pull requests, required checks and PR titles |
 | [Releasing](docs/RELEASING.md) | How merged pull requests become releases |
@@ -105,10 +115,19 @@ src/
 │   ├── Rules.php          host patterns and the decision, no WordPress state
 │   ├── Guard.php          pre_http_request, policy and caller detection
 │   └── Log.php            the request list
+├── Gate/
+│   ├── Access.php         tokens, IP ranges and path patterns, no WordPress state
+│   ├── Gate.php           the password gate: who passes, lockout, cookies
+│   ├── Links.php          share links, and their privacy tools
+│   └── Screen.php         the password screen
+├── Cron/
+│   ├── Tasks.php          the schedule, owners, suggestions, protected hooks
+│   ├── Hold.php           holds tasks, runs one once
+│   └── Log.php            the held list
 ├── Search/Robots.php      noindex header and tag, robots.txt, sitemaps
-├── Admin/                 settings screen, admin bar and tab titles
-├── Health/SiteHealth.php  the Site Health check
-└── Cli/Command.php        wp axle-staging-guard
+├── Admin/                 settings screen and its tabs, admin bar and tab titles
+├── Health/SiteHealth.php  the Site Health checks
+└── Cli/                   wp axle-staging-guard, gate, gate link and hold
 tests/
 ├── Unit/                  PHPUnit
 └── e2e/                   Playwright specs and the Docker site
@@ -130,12 +149,12 @@ Small plugins that each fill one gap in WordPress, all free with no pro version.
 | <img src="https://raw.githubusercontent.com/aryanjasala/agent-governance/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Agent Governance](https://github.com/aryanjasala/agent-governance) | Hold risky AI agent calls for approval, preview what they change, and roll back a session |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-ai-guard/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle AI Guard](https://github.com/aryanjasala/axle-ai-guard) | See and control every AI call your plugins make: cost, data sent, budgets and a kill switch |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-config-sync/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Config Sync](https://github.com/aryanjasala/axle-config-sync) | Keep settings in git, diff them against the live site, apply with a preview and undo |
-| <img src="https://raw.githubusercontent.com/aryanjasala/axle-leftovers/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Leftovers](https://github.com/aryanjasala/axle-leftovers) | Find what deleted plugins left behind, see who owns it and why, and clean it up with undo |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-leftovers/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Leftovers](https://github.com/aryanjasala/axle-leftovers) | Find what deleted plugins and themes left behind, see who owns it and why, and clean it up with undo |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-license-tracker/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle License Tracker](https://github.com/aryanjasala/axle-license-tracker) | See which premium plugins are licensed, which lapsed and stopped getting updates, and what renews when |
-| <img src="https://raw.githubusercontent.com/aryanjasala/axle-review/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Review](https://github.com/aryanjasala/axle-review) | Share drafts through private links and collect outside feedback as block Notes |
+| <img src="https://raw.githubusercontent.com/aryanjasala/axle-review/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Review](https://github.com/aryanjasala/axle-review) | Share drafts through private links, collect outside feedback as block Notes, and know when an approval is out of date |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-runtime-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Runtime Doctor](https://github.com/aryanjasala/axle-runtime-doctor) | Check OPcache coverage, the object cache, PHP support and limits, cron and more, with the fix for your host |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-smoke-test/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Smoke Test](https://github.com/aryanjasala/axle-smoke-test) | Check key pages after every update or deploy, see what broke and roll it back |
-| <img src="https://raw.githubusercontent.com/aryanjasala/block-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Doctor](https://github.com/aryanjasala/block-doctor) | Scan the whole site for invalid and broken blocks and fix them in bulk, with undo |
+| <img src="https://raw.githubusercontent.com/aryanjasala/block-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Doctor](https://github.com/aryanjasala/block-doctor) | Scan the site for broken blocks and fix them in bulk, with undo. See which posts use each block before you switch a plugin off |
 | <img src="https://raw.githubusercontent.com/aryanjasala/block-theme-ops/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Theme Ops](https://github.com/aryanjasala/block-theme-ops) | Find Site Editor changes that override your theme files, see the diff, reset them or send them to Git |
 | <img src="https://raw.githubusercontent.com/aryanjasala/role-right-sizer/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Role Right-Sizer](https://github.com/aryanjasala/role-right-sizer) | Recommends the smallest role each user needs, from what they actually do |
 | <img src="https://raw.githubusercontent.com/aryanjasala/update-rehearsal/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Update Rehearsal](https://github.com/aryanjasala/update-rehearsal) | Try plugin, theme, core and PHP updates on a disposable copy of your site in WordPress Playground first |

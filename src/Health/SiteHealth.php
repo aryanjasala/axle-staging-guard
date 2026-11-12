@@ -8,7 +8,9 @@
 namespace AryanX\Axle\StagingGuard\Health;
 
 use AryanX\Axle\StagingGuard\Admin\SettingsPage;
+use AryanX\Axle\StagingGuard\Cron\Hold;
 use AryanX\Axle\StagingGuard\Environment;
+use AryanX\Axle\StagingGuard\Gate\Gate;
 use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 use AryanX\Axle\StagingGuard\Service;
@@ -50,18 +52,36 @@ final class SiteHealth implements Service {
 	private HttpGuard $http;
 
 	/**
+	 * The password gate.
+	 *
+	 * @var Gate
+	 */
+	private Gate $gate;
+
+	/**
+	 * Holds scheduled tasks.
+	 *
+	 * @var Hold
+	 */
+	private Hold $hold;
+
+	/**
 	 * Sets up the check.
 	 *
 	 * @param Settings    $settings    Saved settings.
 	 * @param Environment $environment Environment detection.
 	 * @param Guard       $mail        Email guard.
 	 * @param HttpGuard   $http        Outgoing request guard.
+	 * @param Gate        $gate        The password gate.
+	 * @param Hold        $hold        Holds scheduled tasks.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
 		$this->http        = $http;
+		$this->gate        = $gate;
+		$this->hold        = $hold;
 	}
 
 	/**
@@ -83,7 +103,61 @@ final class SiteHealth implements Service {
 			'test'  => array( $this, 'run' ),
 		);
 
+		// These two only make sense on a copy that is not the live site.
+		if ( $this->environment->is_guarded() ) {
+			$tests['direct']['axle_staging_guard_gate']  = array(
+				'label' => __( 'Axle Staging Guard password gate', 'axle-staging-guard' ),
+				'test'  => array( $this, 'run_gate' ),
+			);
+			$tests['direct']['axle_staging_guard_tasks'] = array(
+				'label' => __( 'Axle Staging Guard scheduled tasks', 'axle-staging-guard' ),
+				'test'  => array( $this, 'run_tasks' ),
+			);
+		}
+
 		return $tests;
+	}
+
+	/**
+	 * Tests whether this copy is open to anyone with its address.
+	 *
+	 * @return array Site Health result.
+	 */
+	public function run_gate(): array {
+		$action = sprintf( '<p><a href="%s">%s</a></p>', esc_url( add_query_arg( 'tab', 'gate', admin_url( 'tools.php?page=' . SettingsPage::SLUG ) ) ), esc_html__( 'Open the password gate', 'axle-staging-guard' ) );
+
+		if ( $this->gate->is_active() ) {
+			return $this->result( 'good', __( 'This copy is behind a password', 'axle-staging-guard' ), __( 'Visitors who are not logged in need the password or a share link to see this copy.', 'axle-staging-guard' ), $action, 'axle_staging_guard_gate' );
+		}
+
+		return $this->result( 'recommended', __( 'This staging copy is open to anyone with its address', 'axle-staging-guard' ), __( 'Staging addresses show up in certificate logs and link lists, so people who were never told about this copy can find it. Turn on the password gate to keep them out, and let a client in with a share link.', 'axle-staging-guard' ), $action, 'axle_staging_guard_gate' );
+	}
+
+	/**
+	 * Tests whether tasks that look risky are still running on this copy.
+	 *
+	 * @return array Site Health result.
+	 */
+	public function run_tasks(): array {
+		$action = sprintf( '<p><a href="%s">%s</a></p>', esc_url( add_query_arg( 'tab', 'tasks', admin_url( 'tools.php?page=' . SettingsPage::SLUG ) ) ), esc_html__( 'Open scheduled tasks', 'axle-staging-guard' ) );
+		$tasks  = $this->hold->tasks();
+		$open   = array_values( array_diff( $tasks->undecided_suggestions(), $tasks->held() ) );
+
+		if ( $open ) {
+			return $this->result(
+				'recommended',
+				__( 'Scheduled tasks that may reach the outside world are still running', 'axle-staging-guard' ),
+				sprintf(
+					/* translators: %s: names of scheduled tasks, separated by commas. */
+					__( 'These tasks look like they send, export or sync data and nothing has been decided about them on this copy: %s. Hold the ones that should not run here.', 'axle-staging-guard' ),
+					implode( ', ', array_slice( $open, 0, 5 ) ) . ( count( $open ) > 5 ? '...' : '' )
+				),
+				$action,
+				'axle_staging_guard_tasks'
+			);
+		}
+
+		return $this->result( 'good', __( 'Scheduled tasks on this copy are accounted for', 'axle-staging-guard' ), __( 'Every task that looks like it reaches the outside world has been held or left running on purpose.', 'axle-staging-guard' ), $action, 'axle_staging_guard_tasks' );
 	}
 
 	/**
@@ -151,9 +225,10 @@ final class SiteHealth implements Service {
 	 * @param string $label       Heading.
 	 * @param string $description Explanation.
 	 * @param string $actions     Action links HTML.
+	 * @param string $test        Name of the test.
 	 * @return array
 	 */
-	private function result( string $status, string $label, string $description, string $actions ): array {
+	private function result( string $status, string $label, string $description, string $actions, string $test = 'axle_staging_guard' ): array {
 		return array(
 			'label'       => $label,
 			'status'      => $status,
@@ -163,7 +238,7 @@ final class SiteHealth implements Service {
 			),
 			'description' => '<p>' . esc_html( $description ) . '</p>',
 			'actions'     => $actions,
-			'test'        => 'axle_staging_guard',
+			'test'        => $test,
 		);
 	}
 }

@@ -190,17 +190,15 @@ test.describe( 'Outgoing requests', () => {
 		await page.goto( PAGE );
 		await expect( page.locator( '.asg-http-row' ) ).toHaveCount( 1 );
 
-		let asked = '';
-		page.once( 'dialog', ( dialog ) => {
-			asked = dialog.message();
-			dialog.dismiss();
-		} );
-		await page.getByRole( 'button', { name: 'Clear request list' } ).click();
-		expect( asked ).toContain( 'cannot be undone' );
+		const step = page.locator( '#asg-clear-http' );
+		await page.locator( '.asg-confirm-open', { hasText: 'Clear request list' } ).click();
+		await expect( step ).toContainText( 'cannot be undone' );
+		await step.getByRole( 'button', { name: 'Keep the list' } ).click();
+		await expect( step ).toBeHidden();
 		expect( wp( 'axle-staging-guard', 'http-log', '--format=count' ) ).toBe( '1' );
 
-		page.once( 'dialog', ( dialog ) => dialog.accept() );
-		await page.getByRole( 'button', { name: 'Clear request list' } ).click();
+		await page.locator( '.asg-confirm-open', { hasText: 'Clear request list' } ).click();
+		await step.getByRole( 'button', { name: 'Clear request list' } ).click();
 		await expect( page.locator( '.notice-success' ) ).toContainText( 'Request list cleared.' );
 		await expect( page.locator( '.asg-http-log .axle-empty' ) ).toContainText( 'No outgoing request has been stopped or recorded yet' );
 	} );
@@ -291,7 +289,9 @@ test.describe( 'Outgoing requests', () => {
 			$mail_log = new AryanX\\Axle\\StagingGuard\\Mail\\Log( $settings );
 			$mail     = new AryanX\\Axle\\StagingGuard\\Mail\\Guard( $settings, $env, $mail_log );
 			$http     = new AryanX\\Axle\\StagingGuard\\Http\\Guard( $settings, $env, new AryanX\\Axle\\StagingGuard\\Http\\Log( $mail_log ) );
-			$result   = ( new AryanX\\Axle\\StagingGuard\\Health\\SiteHealth( $settings, $env, $mail, $http ) )->run();
+			$gate     = new AryanX\\Axle\\StagingGuard\\Gate\\Gate( $settings, $env, new AryanX\\Axle\\StagingGuard\\Gate\\Links( $settings ) );
+			$hold     = new AryanX\\Axle\\StagingGuard\\Cron\\Hold( $settings, new AryanX\\Axle\\StagingGuard\\Cron\\Tasks( $settings ), new AryanX\\Axle\\StagingGuard\\Cron\\Log( $mail_log ) );
+			$result   = ( new AryanX\\Axle\\StagingGuard\\Health\\SiteHealth( $settings, $env, $mail, $http, $gate, $hold ) )->run();
 			echo wp_json_encode( array( $result['status'], $result['label'] ) );
 		` );
 		expect( JSON.parse( environment ) ).toEqual( [ 'recommended', 'This staging copy can call any outside service' ] );

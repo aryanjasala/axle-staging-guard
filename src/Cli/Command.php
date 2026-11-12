@@ -149,6 +149,118 @@ final class Command {
 	}
 
 	/**
+	 * Clears a list of stopped items.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--list=<list>]
+	 * : Which list to clear.
+	 * ---
+	 * default: all
+	 * options:
+	 *   - mail
+	 *   - http
+	 *   - all
+	 * ---
+	 *
+	 * @subcommand clear-log
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function clear_log( array $args, array $assoc_args ): void {
+		$list    = (string) ( $assoc_args['list'] ?? 'all' );
+		$removed = 0;
+
+		if ( 'mail' === $list || 'all' === $list ) {
+			$removed += $this->mail->log()->clear();
+		}
+		if ( 'http' === $list || 'all' === $list ) {
+			$removed += $this->http->log()->clear();
+		}
+
+		\WP_CLI::success( $removed . ' entries removed.' );
+	}
+
+	/**
+	 * Changes one setting.
+	 *
+	 * Settings fixed in wp-config.php cannot be changed here.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <setting>
+	 * : One of mail_mode (block, redirect, allow), redirect_to, allowlist, keep_bodies (1 or 0), noindex (1 or 0), http_mode (allow, log, block), http_allowlist, http_blocklist. Lists are comma separated.
+	 *
+	 * <value>
+	 * : The new value.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp axle-staging-guard set mail_mode redirect
+	 *     wp axle-staging-guard set http_allowlist "sandbox.paypal.com,*.youragency.com"
+	 *
+	 * @param array $args Positional arguments.
+	 */
+	public function set( array $args ): void {
+		list( $key, $value ) = array_pad( $args, 2, '' );
+
+		switch ( $key ) {
+			case 'mail_mode':
+				if ( ! in_array( $value, Settings::MAIL_MODES, true ) ) {
+					\WP_CLI::error( 'mail_mode must be block, redirect or allow.' );
+				}
+				$change = array( 'mail_mode' => $value );
+				break;
+
+			case 'http_mode':
+				if ( ! in_array( $value, Settings::HTTP_MODES, true ) ) {
+					\WP_CLI::error( 'http_mode must be allow, log or block.' );
+				}
+				$change = array( 'http_mode' => $value );
+				break;
+
+			case 'redirect_to':
+				if ( '' !== $value && ! is_email( $value ) ) {
+					\WP_CLI::error( 'redirect_to must be an email address.' );
+				}
+				$change = array( 'redirect_to' => sanitize_email( $value ) );
+				break;
+
+			case 'allowlist':
+				$change = array( 'allowlist' => Settings::parse_allowlist( $value ) );
+				break;
+
+			case 'http_allowlist':
+			case 'http_blocklist':
+				$change = array( $key => Settings::parse_hosts( $value ) );
+				break;
+
+			case 'keep_bodies':
+			case 'noindex':
+				$change = array( $key => in_array( strtolower( $value ), array( '1', 'true', 'yes', 'on' ), true ) );
+				break;
+
+			default:
+				\WP_CLI::error( 'Unknown setting. See wp help axle-staging-guard set.' );
+				return;
+		}
+
+		$http_fixed = HttpGuard::fixed();
+		$fixed      = $this->settings->is_fixed( $key )
+			|| ( in_array( $key, array( 'mail_mode', 'redirect_to', 'allowlist' ), true ) && $this->mail->policy()['locked'] )
+			|| ( 'http_mode' === $key && $http_fixed['mode'] )
+			|| ( 'http_allowlist' === $key && $http_fixed['allowlist'] )
+			|| ( 'http_blocklist' === $key && $http_fixed['blocklist'] );
+		if ( $fixed ) {
+			\WP_CLI::error( $key . ' is fixed in wp-config.php, so a saved value would have no effect.' );
+		}
+
+		$this->settings->update( $change );
+		\WP_CLI::success( 'Saved ' . $key . '.' );
+	}
+
+	/**
 	 * Sends a test email and reports what happened to it.
 	 *
 	 * ## OPTIONS
