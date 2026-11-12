@@ -34,6 +34,24 @@ final class Settings {
 		'http_blocklist'  => array(),
 		'production_hash' => '',
 		'log_version'     => 0,
+		// The password gate on the staging front end. Off by default. The hash is never the password.
+		'gate_enabled'    => false,
+		'gate_hash'       => '',
+		'gate_secret'     => '',
+		'gate_ips'        => array(),
+		'gate_paths'      => array(),
+		'gate_links'      => array(),
+		// Scheduled tasks to hold on staging, and the tasks the person has already decided about.
+		'cron_held'       => array(),
+		'cron_decided'    => array(),
+	);
+
+	/**
+	 * Settings that are never passed to hooks.
+	 */
+	private const SECRET_KEYS = array(
+		'gate_hash'   => true,
+		'gate_secret' => true,
 	);
 
 	/**
@@ -47,7 +65,7 @@ final class Settings {
 	/**
 	 * All settings in effect: saved values, defaults, then wp-config.php constants.
 	 *
-	 * @return array{mail_mode: string, redirect_to: string, allowlist: string[], keep_bodies: bool, noindex: bool, http_mode: string, http_allowlist: string[], http_blocklist: string[], production_hash: string, log_version: int}
+	 * @return array{mail_mode: string, redirect_to: string, allowlist: string[], keep_bodies: bool, noindex: bool, http_mode: string, http_allowlist: string[], http_blocklist: string[], production_hash: string, log_version: int, gate_enabled: bool, gate_hash: string, gate_secret: string, gate_ips: string[], gate_paths: string[], gate_links: array[], cron_held: string[], cron_decided: string[]}
 	 */
 	public function all(): array {
 		$all = $this->saved();
@@ -102,9 +120,27 @@ final class Settings {
 	 * Changes some settings and keeps the rest.
 	 *
 	 * @param array $changes Setting name => value.
+	 * @param bool  $notify  Whether to fire the saved action. Bookkeeping such as "last used" skips it.
 	 */
-	public function update( array $changes ): void {
-		update_option( self::OPTION, array_merge( $this->saved(), array_intersect_key( $changes, self::DEFAULTS ) ), true );
+	public function update( array $changes, bool $notify = true ): void {
+		$old = $this->saved();
+		$new = array_merge( $old, array_intersect_key( $changes, self::DEFAULTS ) );
+
+		update_option( self::OPTION, $new, true );
+
+		if ( ! $notify ) {
+			return;
+		}
+
+		/**
+		 * Fires after settings are saved.
+		 *
+		 * The gate's password hash and signing secret are left out of both arrays.
+		 *
+		 * @param array $new The settings now saved.
+		 * @param array $old The settings before.
+		 */
+		do_action( 'axle_staging_guard_settings_saved', array_diff_key( $new, self::SECRET_KEYS ), array_diff_key( $old, self::SECRET_KEYS ) );
 	}
 
 	/**
