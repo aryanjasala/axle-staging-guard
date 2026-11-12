@@ -4,7 +4,7 @@ Tags: staging, environment, email, noindex, api
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -164,6 +164,9 @@ Code that does not go through the WordPress HTTP API: a PHP SDK that opens its o
 5. Scheduled tasks, with the ones to hold on staging.
 
 == Changelog ==
+
+= 2.2.0 =
+* New: password gate with share links and held scheduled tasks
 
 = 2.1.0 =
 * New: guard outgoing API calls on staging, not only email
