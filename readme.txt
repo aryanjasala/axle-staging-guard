@@ -1,6 +1,6 @@
 === Axle Staging Guard ===
 Contributors: aryanjasala
-Tags: staging, environment, email, noindex, api
+Tags: staging, disable emails, email, noindex, environment
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -78,6 +78,8 @@ Fix the email behaviour per environment, so a database copy cannot change it:
 * `wp axle-staging-guard test-url https://api.example.com/v1` says what would happen to a request to that URL.
 
 **Try it before you install.** [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
+
+**Every hook, WP-CLI command and constant** is in the [guide on axlewp.com](https://axlewp.com/docs/axle-staging-guard/).
 
 == Frequently Asked Questions ==
 
