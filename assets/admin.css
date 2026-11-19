@@ -128,3 +128,43 @@
 .asg-steps {
 	margin-bottom: 16px;
 }
+
+/* Share links on a phone: Name, Status and the buttons. Expiry, last use and visits are on the wider screens. */
+@media screen and (max-width: 782px) {
+	.asg-links .asg-hide-narrow {
+		display: none;
+	}
+
+	.asg-row-actions .asg-link-url {
+		max-width: none;
+	}
+}
+
+/* Test mode recipe. */
+.asg-test-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.asg-test-list li {
+	padding: 8px 0;
+	border-bottom: 1px solid var(--axle-line, #dcdcde);
+}
+
+.asg-test-list li:last-child {
+	border-bottom: 0;
+}
+
+.asg-test-list .axle-badge {
+	margin-left: 8px;
+}
+
+.asg-test-results .row-actions.visible {
+	position: static;
+	left: auto;
+}
+
+.asg-test-results .asg-button-form {
+	margin-top: 12px;
+}

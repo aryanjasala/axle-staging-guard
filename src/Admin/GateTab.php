@@ -322,9 +322,9 @@ final class GateTab implements Service {
 							<tr>
 								<th scope="col"><?php esc_html_e( 'Name', 'axle-staging-guard' ); ?></th>
 								<th scope="col"><?php esc_html_e( 'Status', 'axle-staging-guard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Expires', 'axle-staging-guard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Last used', 'axle-staging-guard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Visits', 'axle-staging-guard' ); ?></th>
+								<th scope="col" class="asg-hide-narrow"><?php esc_html_e( 'Expires', 'axle-staging-guard' ); ?></th>
+								<th scope="col" class="asg-hide-narrow"><?php esc_html_e( 'Last used', 'axle-staging-guard' ); ?></th>
+								<th scope="col" class="asg-hide-narrow"><?php esc_html_e( 'Visits', 'axle-staging-guard' ); ?></th>
 								<th scope="col"><?php esc_html_e( 'Actions', 'axle-staging-guard' ); ?></th>
 							</tr>
 						</thead>
@@ -334,9 +334,9 @@ final class GateTab implements Service {
 								<tr class="asg-link-row">
 									<td><?php echo esc_html( $link['name'] ); ?></td>
 									<td><span class="axle-badge axle-badge--<?php echo $works ? 'good' : 'neutral'; ?>"><?php echo $works ? esc_html__( 'Works', 'axle-staging-guard' ) : esc_html__( 'Expired', 'axle-staging-guard' ); ?></span></td>
-									<td><?php echo AxleUi::relative_time( (int) $link['expires'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time(). ?></td>
-									<td><?php echo AxleUi::relative_time( (int) $link['last_used'], __( 'Never used', 'axle-staging-guard' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time(). ?></td>
-									<td><?php echo esc_html( number_format_i18n( (int) $link['uses'] ) ); ?></td>
+									<td class="asg-hide-narrow"><?php echo AxleUi::relative_time( (int) $link['expires'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time(). ?></td>
+									<td class="asg-hide-narrow"><?php echo AxleUi::relative_time( (int) $link['last_used'], __( 'Never used', 'axle-staging-guard' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped inside relative_time(). ?></td>
+									<td class="asg-hide-narrow"><?php echo esc_html( number_format_i18n( (int) $link['uses'] ) ); ?></td>
 									<td>
 										<div class="asg-row-actions">
 											<?php if ( $works ) : ?>

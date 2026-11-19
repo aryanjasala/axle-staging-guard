@@ -1,6 +1,7 @@
 const { test, expect, wp, wpEval } = require( './utils' );
 
 const PAGE = '/wp-admin/tools.php?page=axle-staging-guard';
+const LOGS = `${ PAGE }&tab=logs`;
 const OPTION = 'axle_staging_guard_settings';
 
 // The lab has no WP_ENVIRONMENT_TYPE, so these simulate the two real situations.
@@ -67,7 +68,7 @@ test.describe( 'Outgoing requests', () => {
 		request( 'https://hooks.example-vendor.test/hooks/catch/123456/abcdefghijklmnopqrstuvwxyz1234' );
 
 		// One row per distinct request, with the count.
-		await page.goto( PAGE );
+		await page.goto( LOGS );
 		const rows = page.locator( '.asg-http-row' );
 		await expect( rows ).toHaveCount( 2 );
 		const crm = rows.filter( { hasText: 'crm.example-vendor.test' } );
@@ -83,6 +84,7 @@ test.describe( 'Outgoing requests', () => {
 		expect( stored ).not.toContain( 'abcdefghijklmnopqrstuvwxyz1234' );
 
 		// The status card counts the different requests.
+		await page.goto( PAGE );
 		await expect( page.locator( '.asg-state' ).nth( 2 ) ).toContainText( 'Blocked except allowed hosts' );
 		await expect( page.locator( '.asg-state' ).nth( 2 ) ).toContainText( '2 different requests stopped or recorded' );
 	} );
@@ -112,6 +114,7 @@ test.describe( 'Outgoing requests', () => {
 
 		await page.goto( PAGE );
 		await expect( page.locator( '.asg-state' ).nth( 2 ) ).toContainText( 'Logged, not blocked' );
+		await page.goto( LOGS );
 		const row = page.locator( '.asg-http-row' );
 		await expect( row ).toHaveCount( 1 );
 		await expect( row.locator( '.axle-badge' ) ).toHaveText( 'Logged' );
@@ -134,9 +137,9 @@ test.describe( 'Outgoing requests', () => {
 		await page.getByLabel( 'Block all except allowed hosts' ).check();
 		await page.locator( '#asg-http-allow' ).fill( 'https://Sandbox.PayPal.com/v1\n*.youragency.com\n*' );
 		await page.locator( '#asg-http-block' ).fill( 'api.stripe.com' );
-		await page.getByRole( 'button', { name: 'Save request settings' } ).click();
+		await page.getByRole( 'button', { name: 'Save settings' } ).click();
 
-		await expect( page.locator( '.notice-success' ) ).toContainText( 'Request settings saved.' );
+		await expect( page.locator( '.notice-success' ) ).toContainText( 'Settings saved.' );
 		await expect( page.locator( '.asg-state' ).nth( 2 ) ).toContainText( 'Blocked except allowed hosts' );
 		await expect( page.locator( '#asg-http-allow' ) ).toHaveValue( 'sandbox.paypal.com\n*.youragency.com' );
 		await expect( page.locator( '#asg-http-block' ) ).toHaveValue( 'api.stripe.com' );
@@ -150,7 +153,7 @@ test.describe( 'Outgoing requests', () => {
 
 	test( 'test a URL says what would happen, sends nothing and logs nothing', async ( { page } ) => {
 		staging( { http_mode: 'block', http_allowlist: [ 'sandbox.paypal.com' ], http_blocklist: [ 'hooks.slack.com' ] } );
-		await page.goto( PAGE );
+		await page.goto( LOGS );
 
 		const check = async ( url ) => {
 			await page.locator( '#asg-test-url' ).fill( url );
@@ -179,7 +182,7 @@ test.describe( 'Outgoing requests', () => {
 
 		// On the live site it says nothing happens there.
 		live();
-		await page.goto( PAGE );
+		await page.goto( LOGS );
 		result = await check( 'https://api.stripe.com/v1/charges' );
 		await expect( result ).toContainText( 'this is the live site' );
 	} );
@@ -187,7 +190,7 @@ test.describe( 'Outgoing requests', () => {
 	test( 'clearing the request list asks first', async ( { page } ) => {
 		staging( { http_mode: 'block' } );
 		request( 'https://clear.example-vendor.test/x' );
-		await page.goto( PAGE );
+		await page.goto( LOGS );
 		await expect( page.locator( '.asg-http-row' ) ).toHaveCount( 1 );
 
 		const step = page.locator( '#asg-clear-http' );
@@ -207,8 +210,8 @@ test.describe( 'Outgoing requests', () => {
 		staging( { http_mode: 'allow' } );
 		request( 'https://quiet.example-vendor.test/x' );
 		await page.goto( PAGE );
-
 		await expect( page.locator( '.asg-state' ).nth( 2 ) ).toContainText( 'Allowed' );
+		await page.goto( LOGS );
 		await expect( page.locator( '.asg-http-log .axle-empty' ) ).toContainText( 'set to allow all' );
 	} );
 
@@ -236,8 +239,8 @@ test.describe( 'Outgoing requests', () => {
 
 			// Saving the card keeps the saved values for fixed fields.
 			await page.locator( '#asg-http-block' ).fill( 'blocked.example-vendor.test' );
-			await page.getByRole( 'button', { name: 'Save request settings' } ).click();
-			await expect( page.locator( '.notice-success' ) ).toContainText( 'Request settings saved.' );
+			await page.getByRole( 'button', { name: 'Save settings' } ).click();
+			await expect( page.locator( '.notice-success' ) ).toContainText( 'Settings saved.' );
 			expect( wpEval( `echo get_option( '${ OPTION }' )['http_mode'];` ) ).toBe( 'allow' );
 			expect( wpEval( `echo get_option( '${ OPTION }' )['http_blocklist'][0];` ) ).toBe( 'blocked.example-vendor.test' );
 		} finally {
@@ -291,7 +294,7 @@ test.describe( 'Outgoing requests', () => {
 			$http     = new AryanX\\Axle\\StagingGuard\\Http\\Guard( $settings, $env, new AryanX\\Axle\\StagingGuard\\Http\\Log( $mail_log ) );
 			$gate     = new AryanX\\Axle\\StagingGuard\\Gate\\Gate( $settings, $env, new AryanX\\Axle\\StagingGuard\\Gate\\Links( $settings ) );
 			$hold     = new AryanX\\Axle\\StagingGuard\\Cron\\Hold( $settings, new AryanX\\Axle\\StagingGuard\\Cron\\Tasks( $settings ), new AryanX\\Axle\\StagingGuard\\Cron\\Log( $mail_log ) );
-			$result   = ( new AryanX\\Axle\\StagingGuard\\Health\\SiteHealth( $settings, $env, $mail, $http, $gate, $hold ) )->run();
+			$result   = ( new AryanX\\Axle\\StagingGuard\\Health\\SiteHealth( $settings, $env, $mail, $http, $gate, $hold, new AryanX\\Axle\\StagingGuard\\TestMode\\Recipe( $settings, $env ) ) )->run();
 			echo wp_json_encode( array( $result['status'], $result['label'] ) );
 		` );
 		expect( JSON.parse( environment ) ).toEqual( [ 'recommended', 'This staging copy can call any outside service' ] );

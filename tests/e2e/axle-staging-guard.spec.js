@@ -1,6 +1,7 @@
 const { test, expect, wp, wpEval } = require( './utils' );
 
 const PAGE = '/wp-admin/tools.php?page=axle-staging-guard';
+const LOGS = `${ PAGE }&tab=logs`;
 
 // The lab has no WP_ENVIRONMENT_TYPE, so these simulate the two real situations.
 const live = () => wp( 'option', 'delete', 'axle_staging_guard_settings' );
@@ -81,7 +82,7 @@ test.describe( 'Axle Staging Guard', () => {
 
 	test( 'clearing the stopped email list asks first', async ( { page } ) => {
 		copiedToStaging();
-		await page.goto( PAGE );
+		await page.goto( LOGS );
 		await page.locator( '#asg-test-to' ).fill( 'customer@example.com' );
 		await page.getByRole( 'button', { name: 'Send', exact: true } ).click();
 		await expect( page.locator( '.asg-log__row' ) ).toHaveCount( 1 );
@@ -106,7 +107,7 @@ test.describe( 'Axle Staging Guard', () => {
 
 	test( 'blocks a test email and lists it', async ( { page } ) => {
 		copiedToStaging();
-		await page.goto( PAGE );
+		await page.goto( LOGS );
 
 		await page.locator( '#asg-test-to' ).fill( 'customer@example.com' );
 		await page.getByRole( 'button', { name: 'Send', exact: true } ).click();
@@ -161,7 +162,7 @@ test.describe( 'Axle Staging Guard', () => {
 		expect( sent.cc ).toEqual( [ 'lead@agency.test' ] );
 		expect( sent.subject ).toBe( '[STAGING → customer@example.com, boss@example.com] Your order' );
 
-		await page.reload();
+		await page.goto( LOGS );
 		const row = page.locator( '.asg-log__row' ).first();
 		await expect( row.locator( '.axle-badge' ) ).toHaveText( 'Redirected' );
 		await expect( row ).toContainText( 'Still delivered to dev@agency.test' );
@@ -187,6 +188,7 @@ test.describe( 'Axle Staging Guard', () => {
 
 		const listed = await rest( 'GET', '/wp-abilities/v1/abilities?category=axle-staging-guard' );
 		expect( listed.body.map( ( ability ) => ability.name ).sort() ).toEqual( [
+			'axle-staging-guard/apply-test-mode',
 			'axle-staging-guard/clear-log',
 			'axle-staging-guard/create-gate-link',
 			'axle-staging-guard/get-environment',
@@ -196,10 +198,13 @@ test.describe( 'Axle Staging Guard', () => {
 			'axle-staging-guard/hold-task',
 			'axle-staging-guard/list-gate-links',
 			'axle-staging-guard/list-held-tasks',
+			'axle-staging-guard/list-test-mode',
 			'axle-staging-guard/revoke-gate-link',
 			'axle-staging-guard/send-test-email',
 			'axle-staging-guard/set-gate',
+			'axle-staging-guard/set-test-mode-recipe',
 			'axle-staging-guard/test-url',
+			'axle-staging-guard/undo-test-mode',
 		] );
 		// MCP clients only list abilities marked public.
 		expect( JSON.parse( wpEval( `echo wp_json_encode( array_values( array_filter( array_map( function ( $ability ) { $meta = $ability->get_meta(); return ( ! empty( $meta['public'] ) && ! empty( $meta['mcp']['public'] ) ) ? '' : $ability->get_name(); }, wp_get_abilities() ), function ( $name ) { return 0 === strpos( $name, 'axle-staging-guard/' ); } ) ) );` ) ) ).toEqual( [] );

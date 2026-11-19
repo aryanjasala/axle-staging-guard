@@ -44,6 +44,8 @@ final class Settings {
 		// Scheduled tasks to hold on staging, and the tasks the person has already decided about.
 		'cron_held'       => array(),
 		'cron_decided'    => array(),
+		// The test-mode recipe: ticked items and what the first request on this copy changed. See TestMode\Recipe.
+		'test_mode'       => array(),
 	);
 
 	/**
@@ -65,7 +67,7 @@ final class Settings {
 	/**
 	 * All settings in effect: saved values, defaults, then wp-config.php constants.
 	 *
-	 * @return array{mail_mode: string, redirect_to: string, allowlist: string[], keep_bodies: bool, noindex: bool, http_mode: string, http_allowlist: string[], http_blocklist: string[], production_hash: string, log_version: int, gate_enabled: bool, gate_hash: string, gate_secret: string, gate_ips: string[], gate_paths: string[], gate_links: array[], cron_held: string[], cron_decided: string[]}
+	 * @return array{mail_mode: string, redirect_to: string, allowlist: string[], keep_bodies: bool, noindex: bool, http_mode: string, http_allowlist: string[], http_blocklist: string[], production_hash: string, log_version: int, gate_enabled: bool, gate_hash: string, gate_secret: string, gate_ips: string[], gate_paths: string[], gate_links: array[], cron_held: string[], cron_decided: string[], test_mode: array}
 	 */
 	public function all(): array {
 		$all = $this->saved();

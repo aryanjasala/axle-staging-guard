@@ -15,6 +15,8 @@ use AryanX\Axle\StagingGuard\Http\Rules as HttpRules;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 use AryanX\Axle\StagingGuard\Service;
 use AryanX\Axle\StagingGuard\Settings;
+use AryanX\Axle\StagingGuard\TestMode\Adapters;
+use AryanX\Axle\StagingGuard\TestMode\Recipe;
 use const AryanX\Axle\StagingGuard\PLUGIN_FILE;
 use const AryanX\Axle\StagingGuard\VERSION;
 
@@ -91,6 +93,13 @@ final class SettingsPage implements Service {
 	private TasksTab $tasks_tab;
 
 	/**
+	 * The test-mode recipe.
+	 *
+	 * @var Recipe
+	 */
+	private Recipe $test_mode;
+
+	/**
 	 * Sets up the screen.
 	 *
 	 * @param Settings    $settings    Saved settings.
@@ -99,14 +108,16 @@ final class SettingsPage implements Service {
 	 * @param HttpGuard   $http        Outgoing request guard.
 	 * @param Gate        $gate        The password gate.
 	 * @param Hold        $hold        Holds scheduled tasks.
+	 * @param Recipe      $test_mode   The test-mode recipe.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold, Recipe $test_mode ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
 		$this->http        = $http;
 		$this->gate        = $gate;
 		$this->hold        = $hold;
+		$this->test_mode   = $test_mode;
 		$this->gate_tab    = new GateTab( $settings, $environment, $gate );
 		$this->tasks_tab   = new TasksTab( $settings, $environment, $hold );
 	}
@@ -160,7 +171,7 @@ final class SettingsPage implements Service {
 	}
 
 	/**
-	 * The tab being shown: settings, gate or tasks.
+	 * The tab being shown: settings, gate, tasks or logs.
 	 *
 	 * @return string
 	 */
@@ -168,7 +179,7 @@ final class SettingsPage implements Service {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Chooses which tab to show; nothing is changed.
 		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'settings';
 
-		return in_array( $tab, array( 'settings', 'gate', 'tasks' ), true ) ? $tab : 'settings';
+		return in_array( $tab, array( 'settings', 'gate', 'tasks', 'logs' ), true ) ? $tab : 'settings';
 	}
 
 	/**
@@ -182,6 +193,18 @@ final class SettingsPage implements Service {
 
 			case 'tasks':
 				AxleUi::help_tabs( TasksTab::help() );
+				return;
+
+			case 'logs':
+				AxleUi::help_tabs(
+					array(
+						array(
+							'id'      => 'logs',
+							'title'   => __( 'Logs', 'axle-staging-guard' ),
+							'content' => '<p>' . esc_html__( 'The email and outgoing requests this copy stopped or recorded. Test a URL shows what would happen to an address without sending anything. Send a test email shows what happens to email from this copy.', 'axle-staging-guard' ) . '</p>',
+						),
+					)
+				);
 				return;
 		}
 
@@ -201,6 +224,11 @@ final class SettingsPage implements Service {
 					'id'      => 'email',
 					'title'   => __( 'Email', 'axle-staging-guard' ),
 					'content' => '<p>' . esc_html__( 'Blocking is the safe choice. Redirect sends every email to one test address. The "always deliver to" list lets your own team receive real email. Stopped email is listed at the bottom, and message bodies are only kept if you turn that on.', 'axle-staging-guard' ) . '</p>',
+				),
+				array(
+					'id'      => 'test-mode',
+					'title'   => __( 'Test mode on copies', 'axle-staging-guard' ),
+					'content' => '<p>' . esc_html__( 'On the live site, tick the payment and mail plugins that every copy should switch to test mode. The choice is saved in the database and does nothing on the live site. On the first request on a copy, each ticked item switches to test mode once, the old value is kept, and you can undo each item.', 'axle-staging-guard' ) . '</p>',
 				),
 				array(
 					'id'      => 'requests',
@@ -263,6 +291,7 @@ final class SettingsPage implements Service {
 					'settings' => __( 'Guards', 'axle-staging-guard' ),
 					'gate'     => __( 'Password gate', 'axle-staging-guard' ),
 					'tasks'    => __( 'Scheduled tasks', 'axle-staging-guard' ),
+					'logs'     => __( 'Logs', 'axle-staging-guard' ),
 				);
 				foreach ( $tabs as $slug => $label ) {
 					printf(
@@ -281,6 +310,8 @@ final class SettingsPage implements Service {
 				$this->gate_tab->render();
 			} elseif ( 'tasks' === $tab ) {
 				$this->tasks_tab->render();
+			} elseif ( 'logs' === $tab ) {
+				$this->render_logs_tab();
 			} else {
 				$this->render_overview();
 			}
@@ -297,7 +328,6 @@ final class SettingsPage implements Service {
 	private function render_overview(): void {
 		$guarded = $this->environment->is_guarded();
 		$policy  = $this->mail->policy();
-		$log     = $this->mail->log()->all();
 		$today   = $this->mail->log()->count_since( time() - DAY_IN_SECONDS );
 		$mail_on = $guarded && 'allow' !== $policy['mode'];
 		$http    = $this->http->policy();
@@ -376,15 +406,30 @@ final class SettingsPage implements Service {
 
 			<div class="asg-columns">
 				<div class="asg-main">
-					<section class="axle-card">
-						<h2 class="axle-card__title"><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
-						<?php $this->render_settings_form( $policy ); ?>
-					</section>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php wp_nonce_field( self::ACTION ); ?>
+						<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
+						<input type="hidden" name="task" value="save">
 
-					<section class="axle-card asg-http" id="asg-http">
-						<h2 class="axle-card__title"><?php esc_html_e( 'Calls to other services', 'axle-staging-guard' ); ?></h2>
-						<?php $this->render_http_form( $http ); ?>
-					</section>
+						<section class="axle-card">
+							<h2 class="axle-card__title"><?php esc_html_e( 'When this is not the live site', 'axle-staging-guard' ); ?></h2>
+							<?php $this->render_mail_fields( $policy ); ?>
+						</section>
+
+						<section class="axle-card asg-http" id="asg-http">
+							<h2 class="axle-card__title"><?php esc_html_e( 'Calls to other services', 'axle-staging-guard' ); ?></h2>
+							<?php $this->render_http_fields( $http ); ?>
+						</section>
+
+						<section class="axle-card asg-test-mode" id="asg-test-mode">
+							<h2 class="axle-card__title"><?php esc_html_e( 'Test mode on every copy', 'axle-staging-guard' ); ?></h2>
+							<?php $this->render_test_mode_fields(); ?>
+						</section>
+
+						<?php submit_button( __( 'Save settings', 'axle-staging-guard' ) ); ?>
+					</form>
+
+					<?php $this->render_test_mode_results(); ?>
 				</div>
 
 				<div class="asg-side">
@@ -402,53 +447,19 @@ final class SettingsPage implements Service {
 							?>
 						</section>
 					<?php endif; ?>
-
-					<section class="axle-card">
-						<h2 class="axle-card__title"><?php esc_html_e( 'Send a test email', 'axle-staging-guard' ); ?></h2>
-						<p><?php echo esc_html( $guarded ? __( 'See what happens to email from this copy.', 'axle-staging-guard' ) : __( 'This is the live site, so the test email is really sent.', 'axle-staging-guard' ) ); ?></p>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
-							<?php wp_nonce_field( self::ACTION ); ?>
-							<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
-							<input type="hidden" name="task" value="test_email">
-							<label for="asg-test-to" class="screen-reader-text"><?php esc_html_e( 'Send to', 'axle-staging-guard' ); ?></label>
-							<input type="email" id="asg-test-to" name="test_to" class="regular-text" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" required>
-							<?php submit_button( __( 'Send', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
-						</form>
-					</section>
-
-					<section class="axle-card">
-						<h2 class="axle-card__title"><?php esc_html_e( 'Test a URL', 'axle-staging-guard' ); ?></h2>
-						<p><?php esc_html_e( 'See what would happen to a request to an address. Nothing is sent and nothing is recorded.', 'axle-staging-guard' ); ?></p>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
-							<?php wp_nonce_field( self::ACTION ); ?>
-							<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
-							<input type="hidden" name="task" value="test_url">
-							<label for="asg-test-url" class="screen-reader-text"><?php esc_html_e( 'Address to test', 'axle-staging-guard' ); ?></label>
-							<input type="url" id="asg-test-url" name="test_url" class="regular-text" placeholder="https://api.stripe.com/v1/charges" required>
-							<?php submit_button( __( 'Test URL', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
-						</form>
-					</section>
 				</div>
 			</div>
-
-			<?php $this->render_log( $log ); ?>
-
-			<?php $this->render_http_log( $http ); ?>
 		<?php
 	}
 
 	/**
-	 * Prints the settings form.
+	 * Prints the email and search engine fields. They sit inside the one settings form.
 	 *
 	 * @param array $policy Mail policy in effect.
 	 */
-	private function render_settings_form( array $policy ): void {
+	private function render_mail_fields( array $policy ): void {
 		$settings = $this->settings->all();
 		?>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<?php wp_nonce_field( self::ACTION ); ?>
-			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
-			<input type="hidden" name="task" value="save">
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Outgoing email', 'axle-staging-guard' ); ?></th>
@@ -500,8 +511,6 @@ final class SettingsPage implements Service {
 			<?php if ( $this->settings->is_fixed( 'keep_bodies' ) || $this->settings->is_fixed( 'noindex' ) ) : ?>
 				<p class="description"><?php esc_html_e( 'Greyed-out settings are fixed in wp-config.php (AXLE_STAGING_GUARD_KEEP_BODIES or AXLE_STAGING_GUARD_NOINDEX).', 'axle-staging-guard' ); ?></p>
 			<?php endif; ?>
-			<?php submit_button( __( 'Save settings', 'axle-staging-guard' ) ); ?>
-		</form>
 		<?php
 	}
 
@@ -599,19 +608,16 @@ final class SettingsPage implements Service {
 	}
 
 	/**
-	 * Prints the outgoing request settings form.
+	 * Prints the outgoing request fields. They sit inside the one settings form.
 	 *
 	 * @param array $http Outgoing request policy in effect.
 	 */
-	private function render_http_form( array $http ): void {
+	private function render_http_fields( array $http ): void {
 		$saved = $this->settings->all();
 		$fixed = HttpGuard::fixed();
 		?>
 		<p><?php esc_html_e( 'Payment gateways, CRM and marketing syncs, webhooks and license checks make requests from the server, so a copy of the live site can still reach them with live keys. This applies to requests made through the WordPress HTTP API.', 'axle-staging-guard' ); ?></p>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<?php wp_nonce_field( self::ACTION ); ?>
-			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
-			<input type="hidden" name="task" value="save_http">
+			<input type="hidden" name="http_present" value="1">
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Outgoing requests', 'axle-staging-guard' ); ?></th>
@@ -651,8 +657,6 @@ final class SettingsPage implements Service {
 			<?php if ( $http['locked'] ) : ?>
 				<p class="description"><?php esc_html_e( 'Greyed-out request settings are fixed in wp-config.php (AXLE_STAGING_GUARD_HTTP_MODE, AXLE_STAGING_GUARD_HTTP_ALLOWED_HOSTS or AXLE_STAGING_GUARD_HTTP_BLOCKED_HOSTS).', 'axle-staging-guard' ); ?></p>
 			<?php endif; ?>
-			<?php submit_button( __( 'Save request settings', 'axle-staging-guard' ), 'secondary' ); ?>
-		</form>
 		<?php
 	}
 
@@ -769,6 +773,158 @@ final class SettingsPage implements Service {
 				?>
 			</section>
 		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Prints the Logs tab: the two tools, then both logs with their Clear buttons.
+	 */
+	private function render_logs_tab(): void {
+		$guarded = $this->environment->is_guarded();
+		?>
+			<?php $this->render_notices(); ?>
+
+			<div class="axle-grid asg-tools">
+				<section class="axle-card">
+					<h2 class="axle-card__title"><?php esc_html_e( 'Send a test email', 'axle-staging-guard' ); ?></h2>
+					<p><?php echo esc_html( $guarded ? __( 'See what happens to email from this copy.', 'axle-staging-guard' ) : __( 'This is the live site, so the test email is really sent.', 'axle-staging-guard' ) ); ?></p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
+						<?php wp_nonce_field( self::ACTION ); ?>
+						<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
+						<input type="hidden" name="task" value="test_email">
+						<label for="asg-test-to" class="screen-reader-text"><?php esc_html_e( 'Send to', 'axle-staging-guard' ); ?></label>
+						<input type="email" id="asg-test-to" name="test_to" class="regular-text" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" required>
+						<?php submit_button( __( 'Send', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
+					</form>
+				</section>
+
+				<section class="axle-card">
+					<h2 class="axle-card__title"><?php esc_html_e( 'Test a URL', 'axle-staging-guard' ); ?></h2>
+					<p><?php esc_html_e( 'See what would happen to a request to an address. Nothing is sent and nothing is recorded.', 'axle-staging-guard' ); ?></p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="asg-inline-form">
+						<?php wp_nonce_field( self::ACTION ); ?>
+						<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>">
+						<input type="hidden" name="task" value="test_url">
+						<label for="asg-test-url" class="screen-reader-text"><?php esc_html_e( 'Address to test', 'axle-staging-guard' ); ?></label>
+						<input type="url" id="asg-test-url" name="test_url" class="regular-text" placeholder="https://api.stripe.com/v1/charges" required>
+						<?php submit_button( __( 'Test URL', 'axle-staging-guard' ), 'secondary', 'submit', false ); ?>
+					</form>
+				</section>
+			</div>
+
+			<?php $this->render_log( $this->mail->log()->all() ); ?>
+
+			<?php $this->render_http_log( $this->http->policy() ); ?>
+		<?php
+	}
+
+	/**
+	 * Prints the recipe checkboxes. They sit inside the one settings form.
+	 */
+	private function render_test_mode_fields(): void {
+		$guarded = $this->environment->is_guarded();
+		$items   = $this->test_mode->items();
+		$modes   = array(
+			'test'    => array( 'good', __( 'In test mode', 'axle-staging-guard' ) ),
+			'live'    => array( 'warning', __( 'Live', 'axle-staging-guard' ) ),
+			'missing' => array( 'neutral', __( 'Not set up here', 'axle-staging-guard' ) ),
+		);
+		?>
+		<p>
+			<?php
+			echo esc_html(
+				$guarded
+					? __( 'These were ticked on the live site. The first request on this copy switches each ticked item to test mode, once.', 'axle-staging-guard' )
+					: __( 'Tick what every copy of this site should switch to test mode on its first request. This changes nothing on the live site. The choice is saved in the database, so it travels with every copy.', 'axle-staging-guard' )
+			);
+			?>
+		</p>
+		<input type="hidden" name="tm_present" value="1">
+		<?php if ( ! $this->test_mode->is_enabled() ) : ?>
+			<p class="description"><?php esc_html_e( 'Switching copies to test mode is turned off by a filter on this site.', 'axle-staging-guard' ); ?></p>
+		<?php endif; ?>
+		<?php if ( ! $items ) : ?>
+			<div class="axle-empty">
+				<p><?php esc_html_e( 'No supported plugin is set up on this site yet. Supported: WooPayments, Stripe for WooCommerce, PayPal Payments, Gravity Forms Stripe Add-On and WP Mail SMTP.', 'axle-staging-guard' ); ?></p>
+			</div>
+		<?php else : ?>
+			<fieldset class="asg-test-items">
+				<legend class="screen-reader-text"><?php esc_html_e( 'Switch these to test mode on every copy', 'axle-staging-guard' ); ?></legend>
+				<ul class="asg-test-list">
+					<?php foreach ( $items as $item ) : ?>
+						<li>
+							<label>
+								<input type="checkbox" name="test_mode_items[]" value="<?php echo esc_attr( $item['id'] ); ?>" <?php checked( $item['ticked'] ); ?>>
+								<strong><?php echo esc_html( $item['label'] ); ?></strong>
+							</label>
+							<span class="axle-badge axle-badge--<?php echo esc_attr( $modes[ $item['mode'] ][0] ); ?>"><?php echo esc_html( $modes[ $item['mode'] ][1] ); ?></span>
+							<br><span class="description"><?php echo esc_html( $item['note'] ); ?></span>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</fieldset>
+			<p class="description"><?php esc_html_e( 'Only the one test-mode switch is changed. Keys and every other setting stay as they are, and the old value is kept so you can undo each item.', 'axle-staging-guard' ); ?></p>
+		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Prints what the first request on this copy changed, with Undo as a row action. Copies only.
+	 */
+	private function render_test_mode_results(): void {
+		if ( ! $this->environment->is_guarded() ) {
+			return;
+		}
+
+		$rows = array();
+		foreach ( $this->test_mode->items() as $item ) {
+			if ( in_array( $item['state'], array( 'applied', 'skipped', 'undone', 'pending' ), true ) ) {
+				$rows[] = $item;
+			}
+		}
+
+		if ( ! $rows ) {
+			return;
+		}
+
+		$states  = array(
+			'applied' => array( 'good', __( 'Switched to test mode', 'axle-staging-guard' ) ),
+			'skipped' => array( 'info', __( 'Was already in test mode', 'axle-staging-guard' ) ),
+			'undone'  => array( 'warning', __( 'Undone: back to what it was', 'axle-staging-guard' ) ),
+			'pending' => array( 'neutral', __( 'Waiting for the next request', 'axle-staging-guard' ) ),
+		);
+		$pending = $this->test_mode->pending();
+		?>
+		<section class="axle-card asg-test-results" aria-labelledby="asg-test-results-title">
+			<h2 class="axle-card__title" id="asg-test-results-title"><?php esc_html_e( 'What changed on this copy', 'axle-staging-guard' ); ?></h2>
+			<div class="axle-scroll" tabindex="0" role="region" aria-label="<?php esc_attr_e( 'What changed on this copy', 'axle-staging-guard' ); ?>">
+				<table class="widefat striped">
+					<thead>
+						<tr>
+							<th scope="col"><?php esc_html_e( 'Item', 'axle-staging-guard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'What happened', 'axle-staging-guard' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $rows as $row ) : ?>
+							<tr>
+								<td>
+									<strong><?php echo esc_html( $row['label'] ); ?></strong>
+									<?php $undo = $this->test_mode->undo_link( $row['id'] ); ?>
+									<?php if ( '' !== $undo ) : ?>
+										<div class="row-actions visible"><span class="undo"><?php echo $undo; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built and escaped by Recipe::undo_link(). ?></span></div>
+									<?php endif; ?>
+								</td>
+								<td><span class="axle-badge axle-badge--<?php echo esc_attr( $states[ $row['state'] ][0] ); ?>"><?php echo esc_html( $states[ $row['state'] ][1] ); ?></span></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+			<?php if ( $pending && $this->test_mode->is_enabled() ) : ?>
+				<?php $this->render_button( 'test_mode_apply', __( 'Switch the waiting items now', 'axle-staging-guard' ) ); ?>
+			<?php endif; ?>
+		</section>
 		<?php
 	}
 
@@ -927,6 +1083,19 @@ final class SettingsPage implements Service {
 				$this->environment->unlock();
 				break;
 
+			case 'test_mode':
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Checked above.
+				$item    = isset( $_GET['item'] ) ? sanitize_key( wp_unslash( $_GET['item'] ) ) : '';
+				$adapter = Adapters::get( $item );
+				if ( null === $adapter || ! Adapters::user_can( $item, $adapter ) ) {
+					wp_die( esc_html__( 'Sorry, you are not allowed to change this item.', 'axle-staging-guard' ), 403 );
+				}
+				$result = $this->test_mode->undo( $item );
+				if ( is_wp_error( $result ) ) {
+					$args['sg_error'] = 'nothing_to_undo';
+				}
+				break;
+
 			case 'tasks':
 				$state = get_transient( TasksTab::undo_key() );
 				if ( is_array( $state ) && 2 === count( $state ) ) {
@@ -965,6 +1134,7 @@ final class SettingsPage implements Service {
 			'http_cleared' => __( 'Request list cleared.', 'axle-staging-guard' ),
 			'undone'       => __( 'Undone.', 'axle-staging-guard' ),
 			'steps_hidden' => __( 'The Get started card is hidden for you.', 'axle-staging-guard' ),
+			'tm_applied'   => __( 'The waiting items are now in test mode.', 'axle-staging-guard' ),
 		);
 		$errors   = array(
 			'bad_url'         => __( 'That is not a valid http or https address.', 'axle-staging-guard' ),
@@ -1039,11 +1209,13 @@ final class SettingsPage implements Service {
 			case 'clear_log':
 				$this->mail->log()->clear();
 				$args['sg_message'] = 'cleared';
+				$args['tab']        = 'logs';
 				break;
 
 			case 'clear_http_log':
 				$this->http->log()->clear();
 				$args['sg_message'] = 'http_cleared';
+				$args['tab']        = 'logs';
 				break;
 
 			case 'dismiss_steps':
@@ -1057,6 +1229,7 @@ final class SettingsPage implements Service {
 				$url = isset( $_POST['test_url'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['test_url'] ) ) ) : '';
 				if ( ! HttpRules::is_url( $url ) ) {
 					$args['sg_message'] = 'bad_url';
+					$args['tab']        = 'logs';
 				} else {
 					$decision = $this->http->evaluate( $url );
 					// Kept for one page view. The address itself, which may carry a key, never goes into a redirect.
@@ -1070,6 +1243,7 @@ final class SettingsPage implements Service {
 						MINUTE_IN_SECONDS
 					);
 					$args['sg_url'] = 1;
+					$args['tab']    = 'logs';
 				}
 				break;
 
@@ -1095,9 +1269,15 @@ final class SettingsPage implements Service {
 				$args['sg_message'] = 'http_saved';
 				break;
 
+			case 'test_mode_apply':
+				$this->test_mode->apply_pending();
+				$args['sg_message'] = 'tm_applied';
+				break;
+
 			case 'test_email':
 				$to              = isset( $_POST['test_to'] ) ? sanitize_email( wp_unslash( $_POST['test_to'] ) ) : '';
 				$args['sg_test'] = is_email( $to ) ? $this->mail->send_test( $to ) : 'failed';
+				$args['tab']     = 'logs';
 				break;
 
 			case 'save':
@@ -1114,7 +1294,34 @@ final class SettingsPage implements Service {
 						unset( $changes[ $key ] );
 					}
 				}
+				// The request settings and the test-mode recipe sit in the same form, so one Save keeps all of it.
+				if ( isset( $_POST['http_present'] ) ) {
+					$fixed = HttpGuard::fixed();
+					$hmode = isset( $_POST['http_mode'] ) ? sanitize_key( wp_unslash( $_POST['http_mode'] ) ) : '';
+					$http  = array(
+						'http_mode'      => in_array( $hmode, Settings::HTTP_MODES, true ) ? $hmode : (string) $this->settings->get( 'http_mode' ),
+						'http_allowlist' => isset( $_POST['http_allowlist'] ) ? Settings::parse_hosts( sanitize_textarea_field( wp_unslash( $_POST['http_allowlist'] ) ) ) : array(),
+						'http_blocklist' => isset( $_POST['http_blocklist'] ) ? Settings::parse_hosts( sanitize_textarea_field( wp_unslash( $_POST['http_blocklist'] ) ) ) : array(),
+					);
+					foreach ( array(
+						'mode'      => 'http_mode',
+						'allowlist' => 'http_allowlist',
+						'blocklist' => 'http_blocklist',
+					) as $part => $key ) {
+						if ( $fixed[ $part ] ) {
+							unset( $http[ $key ] );
+						}
+					}
+					$changes += $http;
+				}
 				$this->settings->update( $changes );
+
+				if ( isset( $_POST['tm_present'] ) ) {
+					$ids = isset( $_POST['test_mode_items'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['test_mode_items'] ) ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each id is passed through sanitize_key().
+					$this->test_mode->save( $ids );
+					// A copy switches newly ticked items right away: the first request is this one.
+					$this->test_mode->apply_pending();
+				}
 				$args['sg_message'] = 'saved';
 				break;
 		}

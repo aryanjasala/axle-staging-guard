@@ -77,6 +77,9 @@ final class AdminBar implements Service {
 				),
 			)
 		);
+
+		// Core hides unknown top-level nodes below 782 px. This keeps the label there as an icon.
+		AxleUi::admin_bar_mobile( 'axle-staging-guard', 'dashicons-warning' );
 	}
 
 	/**

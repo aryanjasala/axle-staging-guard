@@ -39,6 +39,7 @@ When a constant is set, its setting on the screen is read-only.
 | `axle_staging_guard_noindex` | filter | `( bool $noindex )`. Whether staging copies are hidden from search engines |
 | `axle_staging_guard_robots_txt` | filter | `( string $output )`. The robots.txt a staging copy serves |
 | `axle_staging_guard_colours` | filter | `( array $colours )`. Admin bar colour per environment type. Anything but a hex colour falls back to the default |
+| `axle_environment_type` | filter | `( string $type )`. Shared by the whole Axle family through `AxleUi::environment_type()`. Staging Guard answers with what it detected when core says production. Never changes another answer |
 | `axle_staging_guard_environment_label` | filter | `( string $label, string $type )`. The environment name in the admin bar and on the screens, such as "UAT" |
 | `axle_staging_guard_log_size` | filter | `( int $size )`. Stopped emails the log keeps at most. Default 1000 |
 | `axle_staging_guard_http_mode` | filter | `( string $mode, string $environment )`. `allow`, `log` or `block`. An unknown value blocks |
@@ -58,7 +59,7 @@ When a constant is set, its setting on the screen is read-only.
 | `axle_staging_guard_settings_saved` | action | `( array $new, array $old )`. Settings were saved, from the screen, WP-CLI or an ability. The gate's password hash and secret are left out |
 | `axle_staging_guard_log_cleared` | action | `( string $list, int $removed )`. A list was cleared by hand: `mail`, `http` or `held` |
 | `axle_staging_guard_gate_enabled` | filter | `( bool $on )`. Whether the password gate is on. It cannot turn the gate on for the live site |
-| `axle_staging_guard_gate_allow_request` | filter | `( bool $allowed, string $reason, string $path )`. Let a request past the gate. `$reason` is `user`, `ip`, `path`, `session`, `link` or empty |
+| `axle_staging_guard_gate_allow_request` | filter | `( bool $allowed, string $reason, string $path )`. Let a request past the gate. `$reason` is `user`, `ip`, `path`, `loopback`, `session`, `link` or empty. `loopback` is a signed request from this same site, made with `AxleUi::loopback_headers()`: it passes the gate and nothing else |
 | `axle_staging_guard_gate_user_allowed` | filter | `( bool $allowed, WP_User $user )`. Whether a logged-in user skips the gate. Default true for every logged-in user |
 | `axle_staging_guard_gate_bypass_paths` | filter | `( string[] $paths )`. Paths that skip the gate. `*` matches anything. REST routes are matched as `/wp-json/<route>` |
 | `axle_staging_guard_gate_allowed_ips` | filter | `( string[] $ips )`. Addresses and CIDR ranges that skip the gate |
@@ -79,12 +80,19 @@ When a constant is set, its setting on the screen is read-only.
 | `axle_staging_guard_gate_turned_on` | action | The gate was turned on |
 | `axle_staging_guard_gate_turned_off` | action | The gate was turned off |
 | `axle_staging_guard_gate_password_changed` | action | The gate password changed. Everyone who entered the old one is signed out of the gate |
-| `axle_staging_guard_gate_denied` | action | `( array $context )`. The gate stopped a request: `path` (no query string), `method` and `error` (empty, `password`, `expired`, `link`, `locked` or `rest`) |
+| `axle_staging_guard_gate_denied` | action | `( array $context )`. The gate stopped a request: `path` (no query string), `method` and `error` (empty, `password`, `expired`, `link`, `locked`, `rest` or `ajax`) |
 | `axle_staging_guard_gate_unlocked` | action | `( string $ip )`. A visitor got in with the password |
 | `axle_staging_guard_gate_locked_out` | action | `( string $ip, int $minutes )`. An address was locked out |
 | `axle_staging_guard_gate_link_created` | action | `( array $link )`. A share link was made: `id`, `name`, `created`, `expires`, `last_used`, `uses`, `by` |
 | `axle_staging_guard_gate_link_used` | action | `( array $link )`. Someone got in with a share link |
 | `axle_staging_guard_gate_link_revoked` | action | `( array $link )`. A share link was revoked |
+| `axle_staging_guard_test_mode_enabled` | filter | `( bool $enabled )`. Whether copies switch ticked items to test mode by themselves. Default true. Cannot make anything run on the live site |
+| `axle_staging_guard_test_mode_adapters` | filter | `( array $adapters )`. The plugins that can be put in test mode: id => `label`, `note`, `capability` and `changes`, each change being `option`, `path` (keys to one value inside the option) and `test` (the value that means test mode). Add your own, or remove a built-in one |
+| `axle_staging_guard_test_mode_capability` | filter | `( string $capability, string $id )`. What a person needs, on top of the Staging Guard capability, to tick, untick or undo one item. Default `manage_woocommerce` for the WooCommerce gateways, `gravityforms_edit_settings` for Gravity Forms, `manage_options` for WP Mail SMTP |
+| `axle_staging_guard_test_mode_recipe_saved` | action | `( string[] $items, string[] $old )`. The ticked items changed |
+| `axle_staging_guard_test_mode_applied` | action | `( string $id, array $changes )`. A copy switched one item to test mode. Each change has `option`, `path`, `had`, `old` and `new` |
+| `axle_staging_guard_test_mode_finished` | action | `( string[] $items )`. A copy finished switching its ticked items |
+| `axle_staging_guard_test_mode_undone` | action | `( string $id )`. A person put an item back to what it was |
 | `axle_staging_guard_cron_protected_hooks` | filter | `( string[] $hooks )`. Scheduled hooks that are never held. Remove one to allow holding it. Names starting `wp_privacy_` or `recovery_mode_` are protected as well |
 | `axle_staging_guard_cron_protected_prefixes` | filter | `( string[] $prefixes )`. Starts of hook names that are never held. Default `wp_privacy_` and `recovery_mode_` |
 | `axle_staging_guard_cron_suggestions` | filter | `( string[] $patterns )`. Regular expressions, without delimiters, that pre-tick a task on the Scheduled tasks tab. Default newsletter, export, sync, feed, renewal and subscription payment |
@@ -98,6 +106,10 @@ When a constant is set, its setting on the screen is read-only.
 | `axle_staging_guard.copiedMessage` | JS filter | `( string $message, string $link )`. What is announced after Copy link |
 | `axle_staging_guard.confirmMessage` | JS filter | `( string $message, Element $step )`. What is announced when an in-place confirm step opens |
 | `axle_staging_guard.announced` | JS action | `( string $message )`. Something was announced to screen readers |
+
+## Answering other Axle plugins
+
+Core calls every site production unless `WP_ENVIRONMENT_TYPE` is set, so a copy found by the production lock or the production hosts still reports production to other plugins. Staging Guard hooks `axle_environment_type`, which the Axle family reads through `AxleUi::environment_type()`, and returns what it detected whenever core says production. An answer other than production is never changed.
 
 ## Changing the detected environment
 
@@ -129,6 +141,10 @@ On WordPress 6.9 and later, Axle Staging Guard registers [abilities](https://dev
 | `axle-staging-guard/revoke-gate-link` | Destructive, idempotent (REST `DELETE`). Revokes the link `id` | the Axle Staging Guard capability |
 | `axle-staging-guard/list-held-tasks` | Read-only. The hooks held on this copy and the runs held recently. Input: `limit` | the Axle Staging Guard capability |
 | `axle-staging-guard/hold-task` | Holds or releases the scheduled task `hook` (`held` true or false). Protected hooks are refused. Idempotent | the Axle Staging Guard capability |
+| `axle-staging-guard/list-test-mode` | Read-only. The items that can be put in test mode, whether each is ticked, in test or live mode, and what happened on this copy. Only items the caller manages | the Axle Staging Guard capability |
+| `axle-staging-guard/set-test-mode-recipe` | Sets the ticked `items`. Changes nothing on the live site. Items the caller does not manage keep their choice. Idempotent | the Axle Staging Guard capability, and the plugin's own capability per item |
+| `axle-staging-guard/apply-test-mode` | Switches the ticked items not yet switched on this copy. Refused on the live site. Idempotent | the Axle Staging Guard capability |
+| `axle-staging-guard/undo-test-mode` | Destructive, idempotent. Puts item `id` back to what it was, which means live keys are used again on this copy | the Axle Staging Guard capability, and the plugin's own capability for that item |
 | `axle-staging-guard/clear-log` | Destructive, idempotent (REST `DELETE`). Empties the `mail`, `http` or `held` list, or `all` of them. The email, requests and tasks themselves are not affected | the Axle Staging Guard capability |
 
 ## WP-CLI
@@ -151,6 +167,12 @@ wp axle-staging-guard gate link create <name> [--days=7] [--porcelain]   # print
 wp axle-staging-guard gate link list [--format=table|csv|json|ids|count]
 wp axle-staging-guard gate link revoke <id>
 
+wp axle-staging-guard test-mode list [--format=table|csv|json|ids|count]  # items, ticked or not, test or live, what happened here
+wp axle-staging-guard test-mode tick <id>...        # run on the live site: every copy switches these on its first request
+wp axle-staging-guard test-mode untick <id>...
+wp axle-staging-guard test-mode run                 # switch the ticked items now, on this copy (refused on live)
+wp axle-staging-guard test-mode undo <id>           # put one item back to what it was
+
 wp axle-staging-guard hold list [--format=table|csv|json|ids|count]      # every scheduled task and whether it is held
 wp axle-staging-guard hold add <hook>...
 wp axle-staging-guard hold remove <hook>...
@@ -161,11 +183,13 @@ wp axle-staging-guard hold clear-log
 
 ## Password gate
 
-On **Tools > Staging Guard > Password gate** you can put one shared password in front of a copy that is not the live site. Visitors who are not logged in see a small page with the site's name and a password field. It is off until you turn it on, it needs a password before it can be turned on, and it never runs on the live site, whatever a filter says.
+On **Tools > Staging Guard > Password gate** you can put one shared password in front of a copy that is not the live site. Visitors who are not logged in see WordPress's own login screen (site icon, white box, core buttons) with a password field and a Log in link, which sends a team member to `wp-login.php` and back to the page they asked for. It is off until you turn it on, it needs a password before it can be turned on, and it never runs on the live site, whatever a filter says.
 
-**What the gate screen does.** It answers `401` (`429` during a lockout), sends `X-Robots-Tag: noindex, nofollow`, a robots meta tag and no-cache headers, and defines `DONOTCACHEPAGE`. It loads nothing from the theme and nothing from outside, so it shows the site's name and nothing else. It works without JavaScript, is labelled for screen readers and is translatable. After a wrong password the page says so. After 5 wrong passwords from one address, that address is locked out for 15 minutes, even for the right password. Both numbers have filters. The counter is kept in a transient under a hash of the address, never the address.
+**What the gate screen does.** It answers `401` (`429` during a lockout), sends `X-Robots-Tag: noindex, nofollow`, a robots meta tag and no-cache headers, and defines `DONOTCACHEPAGE`. It loads core's login styles and nothing from the theme or from outside, so it shows the site's icon and name and nothing else. It has no dark mode, like the login screen. It works without JavaScript, is labelled for screen readers and is translatable. After a wrong password the page says so. After 5 wrong passwords from one address, that address is locked out for 15 minutes, even for the right password. Both numbers have filters. The counter is kept in a transient under a hash of the address, never the address.
 
-**What it covers.** The front end, feeds, posting a comment and the REST API. `admin-ajax.php`, `admin-post.php` and `xmlrpc.php` are not pages and are left alone.
+**What it covers.** The front end, feeds, posting a comment, the REST API, `admin-ajax.php` (including the `wp_ajax_nopriv_*` actions that answer anonymous visitors) and WooCommerce `?wc-ajax=` requests, which the gate stops before WooCommerce answers them. Add `/wp-admin/admin-ajax.php` to the open paths if a webhook or monitor needs it. `admin-post.php` and `xmlrpc.php` are left alone.
+
+**What it cannot cover.** Files in `wp-content/uploads` are served by the web server and never reach WordPress, so anyone with the exact address of an image or file can open it. Protect the folder at the server, for example with HTTP basic authentication for the whole staging site, if that matters.
 
 **Who skips the gate**
 
@@ -175,10 +199,41 @@ On **Tools > Staging Guard > Password gate** you can put one shared password in 
 | IP addresses | A list of addresses and CIDR ranges (IPv4 and IPv6). Only `REMOTE_ADDR` is trusted. Behind a proxy or CDN, return the real address from `axle_staging_guard_gate_client_ip` |
 | Paths | A list such as `/health` or `/webhooks/*`. A `*` matches anything. Paths are cleaned first, so `/health/../about` does not count as `/health`. A REST route is matched as `/wp-json/<route>` |
 | Always open | `/robots.txt`, `/favicon.ico`, `/wp-login.php` and `/wp-cron.php` |
+| This site's own checks | A request that carries a valid `AxleUi::loopback_headers()` header: signed with a key only this site has, valid for two minutes, only sent to this site's own host. Smoke Test, Runtime Doctor and Wayback use it. It passes the gate and nothing else: nobody is signed in and no other guard is skipped |
 
 **Share links.** Make a link for one person: a name ("For Priya at the client") and a length from 1 to 30 days. The link carries a signed token. Opening it sets a signed, HTTP-only cookie for the length of the link, and sends the visitor to the page they asked for with the token removed. No account is needed. The list shows when each link was last used and how many visits it had. Revoking a link deletes its record, which also ends every cookie it set, on the next page view. The password works the same way: it sets a signed cookie for 12 hours, bound to the password, so changing the password signs everyone out.
 
 **Where it is stored.** In the plugin's settings option: the password as a WordPress password hash, a signing secret, the lists and the links. The link itself is never stored. It is built from the record, so a person who manages the plugin can copy it again.
+
+## Test mode on every copy
+
+A copy of the live database still holds the live site's payment and mail settings. Tick them once, on the live site, and every copy puts them in test mode by itself.
+
+**Tick on live.** On **Tools > Staging Guard > Guards**, under "Test mode on every copy", tick the plugins that are set up on this site: WooPayments, Stripe for WooCommerce, PayPal Payments, Gravity Forms Stripe Add-On, WP Mail SMTP. Save. The list is stored in the database, does nothing on the live site and goes with every copy of it.
+
+**First request on a copy.** When a request arrives on a copy (the environment is not production), each ticked item that has not been switched on this copy is switched to test mode, once. A copy is told apart by its address, so a second copy at another address switches again. Two requests at once cannot both record an old value. Nothing runs on the live site: the switch refuses unless the guards are on.
+
+**What changes.** One value per plugin, the plugin's own test-mode switch: `test_mode` in `woocommerce_woocommerce_payments_settings`, `testmode` in `woocommerce_stripe_settings`, `sandbox_on` in `woocommerce-ppcp-settings`, `api_mode` in `gravityformsaddon_gravityformsstripe_settings`, and `general > do_not_send` in `wp_mail_smtp`. Keys and every other setting are never read into the recipe and never touched. The old value is kept so each item has an Undo. An item that is already in test mode is left alone and cannot be undone, because nothing was changed.
+
+**Tell people.** A notice on every admin screen lists what the first request changed, with an Undo link for each item and a "Got it" button. The Guards tab keeps a "What changed on this copy" table with the same Undo row actions. Undo puts the old value back, and the item is not switched again on that copy. Ticking it again lets it switch.
+
+**Who can do what.** Tick, untick and undo need the Staging Guard capability and the plugin's own capability for that item (`manage_woocommerce` for the WooCommerce gateways). People without it do not see the item, and saving never changes an item they cannot manage.
+
+**Site Health.** On a copy, "Live payment or mail settings are still on this copy" lists plugins that are set up and not in test mode, ticked or not.
+
+**Adding a plugin.** Use `axle_staging_guard_test_mode_adapters`. An adapter is data: `label`, `note`, `capability` and one or more `changes`, each with the `option`, the `path` to one value inside it and the `test` value.
+
+```php
+add_filter( 'axle_staging_guard_test_mode_adapters', function ( array $adapters ) {
+	$adapters['my-gateway'] = array(
+		'label'      => 'My Gateway',
+		'note'       => 'Switches to the sandbox.',
+		'capability' => 'manage_woocommerce',
+		'changes'    => array( array( 'option' => 'my_gateway_settings', 'path' => array( 'sandbox' ), 'test' => 'yes' ) ),
+	);
+	return $adapters;
+} );
+```
 
 ## Scheduled tasks
 

@@ -14,6 +14,7 @@ use AryanX\Axle\StagingGuard\Cli\Command;
 use AryanX\Axle\StagingGuard\Cli\GateCommand;
 use AryanX\Axle\StagingGuard\Cli\HoldCommand;
 use AryanX\Axle\StagingGuard\Cli\LinkCommand;
+use AryanX\Axle\StagingGuard\Cli\TestModeCommand;
 use AryanX\Axle\StagingGuard\Cron\Hold;
 use AryanX\Axle\StagingGuard\Cron\Log as CronLog;
 use AryanX\Axle\StagingGuard\Cron\Tasks;
@@ -25,6 +26,7 @@ use AryanX\Axle\StagingGuard\Http\Log as HttpLog;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 use AryanX\Axle\StagingGuard\Mail\Log;
 use AryanX\Axle\StagingGuard\Search\Robots;
+use AryanX\Axle\StagingGuard\TestMode\Recipe;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -87,6 +89,13 @@ final class Plugin {
 	private Hold $hold;
 
 	/**
+	 * The test-mode recipe.
+	 *
+	 * @var Recipe
+	 */
+	private Recipe $test_mode;
+
+	/**
 	 * Runs once when the plugin is activated.
 	 *
 	 * A fresh install starts with outgoing requests set to "log only": nothing
@@ -130,6 +139,7 @@ final class Plugin {
 		$this->http        = new HttpGuard( $this->settings, $this->environment, new HttpLog( $this->mail->log() ) );
 		$this->gate        = new Gate( $this->settings, $this->environment, new Links( $this->settings ) );
 		$this->hold        = new Hold( $this->settings, new Tasks( $this->settings ), new CronLog( $this->mail->log() ) );
+		$this->test_mode   = new Recipe( $this->settings, $this->environment );
 	}
 
 	/**
@@ -150,16 +160,18 @@ final class Plugin {
 			$this->http->log(),
 			$this->hold->log(),
 			$this->gate->links(),
-			new SettingsPage( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold ),
-			new SiteHealth( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold ),
+			new SettingsPage( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold, $this->test_mode ),
+			new SiteHealth( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold, $this->test_mode ),
 			new LockNotice( $this->environment ),
-			new Abilities( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold ),
+			new Abilities( $this->settings, $this->environment, $this->mail, $this->http, $this->gate, $this->hold, $this->test_mode ),
 		);
 
 		if ( $this->environment->is_guarded() ) {
 			$services[] = $this->mail;
 			$services[] = $this->http;
 			$services[] = $this->hold;
+			// Switches the ticked items to test mode on the first request on this copy. Never registered on the live site.
+			$services[] = $this->test_mode;
 			// Registered while guarded only. The gate then checks the switch and the password itself.
 			if ( $this->settings->get( 'gate_enabled' ) || has_filter( 'axle_staging_guard_gate_enabled' ) ) {
 				$services[] = $this->gate;
@@ -170,6 +182,9 @@ final class Plugin {
 			}
 		}
 
+		// Shared with the other Axle plugins through AxleUi::environment_type(). Registered everywhere: the answer is "production" on the live site.
+		add_filter( 'axle_environment_type', array( $this->environment, 'publish_type' ) );
+
 		foreach ( $services as $service ) {
 			$service->register();
 		}
@@ -179,6 +194,7 @@ final class Plugin {
 			\WP_CLI::add_command( 'axle-staging-guard gate', new GateCommand( $this->settings, $this->gate ) );
 			\WP_CLI::add_command( 'axle-staging-guard gate link', new LinkCommand( $this->gate ) );
 			\WP_CLI::add_command( 'axle-staging-guard hold', new HoldCommand( $this->settings, $this->hold ) );
+			\WP_CLI::add_command( 'axle-staging-guard test-mode', new TestModeCommand( $this->test_mode, $this->environment ) );
 		}
 	}
 }

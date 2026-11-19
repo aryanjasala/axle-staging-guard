@@ -12,6 +12,7 @@ use AryanX\Axle\StagingGuard\Cron\Hold;
 use AryanX\Axle\StagingGuard\Gate\Gate;
 use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Mail\Guard;
+use AryanX\Axle\StagingGuard\TestMode\Recipe;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -68,6 +69,13 @@ final class Abilities implements Service {
 	private Hold $hold;
 
 	/**
+	 * The test-mode recipe.
+	 *
+	 * @var Recipe
+	 */
+	private Recipe $test_mode;
+
+	/**
 	 * Sets up the abilities.
 	 *
 	 * @param Settings    $settings    Saved settings.
@@ -76,14 +84,16 @@ final class Abilities implements Service {
 	 * @param HttpGuard   $http        Outgoing request handling.
 	 * @param Gate        $gate        The password gate.
 	 * @param Hold        $hold        Holds scheduled tasks.
+	 * @param Recipe      $test_mode   The test-mode recipe.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold, Recipe $test_mode ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
 		$this->http        = $http;
 		$this->gate        = $gate;
 		$this->hold        = $hold;
+		$this->test_mode   = $test_mode;
 	}
 
 	/**
@@ -327,6 +337,7 @@ final class Abilities implements Service {
 
 		$this->register_gate_abilities( $can_manage );
 		$this->register_task_abilities( $can_manage );
+		$this->register_test_mode_abilities( $can_manage );
 
 		$this->ability(
 			'clear-log',
@@ -613,6 +624,170 @@ final class Abilities implements Service {
 				'idempotent'  => true,
 			)
 		);
+	}
+
+	/**
+	 * Registers the test-mode abilities.
+	 *
+	 * @param callable $can_manage Permission callback.
+	 */
+	private function register_test_mode_abilities( callable $can_manage ): void {
+		$item_schema = array(
+			'type'       => 'object',
+			'properties' => array(
+				'id'     => array( 'type' => 'string' ),
+				'label'  => array( 'type' => 'string' ),
+				'ticked' => array( 'type' => 'boolean' ),
+				'mode'   => array(
+					'type'        => 'string',
+					'description' => 'test, live or missing (the plugin has no saved settings here).',
+				),
+				'state'  => array(
+					'type'        => 'string',
+					'description' => 'none, pending, applied, skipped or undone on this copy.',
+				),
+			),
+		);
+		$items_out   = array(
+			'type'       => 'object',
+			'properties' => array(
+				'items' => array(
+					'type'  => 'array',
+					'items' => $item_schema,
+				),
+			),
+		);
+
+		$this->ability(
+			'list-test-mode',
+			__( 'List test-mode items', 'axle-staging-guard' ),
+			__( 'The payment and mail plugins Staging Guard can switch to test mode on a copy: which are set up here, which are ticked in the recipe, whether each is in test or live mode now, and what happened on this copy. Only items the caller manages are listed.', 'axle-staging-guard' ),
+			array(),
+			$items_out,
+			array( $this, 'list_test_mode' ),
+			$can_manage,
+			array(
+				'readonly'   => true,
+				'idempotent' => true,
+			)
+		);
+
+		$this->ability(
+			'set-test-mode-recipe',
+			__( 'Set the test-mode recipe', 'axle-staging-guard' ),
+			__( 'Chooses which items every copy of this site switches to test mode on its first request. Do this on the live site: it changes nothing there, and the choice travels with every copy of the database. Items the caller does not manage keep their current choice.', 'axle-staging-guard' ),
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'items' => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+				),
+				'required'             => array( 'items' ),
+				'additionalProperties' => false,
+			),
+			$items_out,
+			array( $this, 'set_test_mode_recipe' ),
+			$can_manage,
+			array(
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
+			)
+		);
+
+		$this->ability(
+			'apply-test-mode',
+			__( 'Switch ticked items to test mode now', 'axle-staging-guard' ),
+			__( 'Switches the ticked items that have not been switched yet on this copy to test mode, keeping the old values for undo. Refused on the live site.', 'axle-staging-guard' ),
+			array(),
+			$items_out,
+			array( $this, 'apply_test_mode' ),
+			$can_manage,
+			array(
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
+			)
+		);
+
+		$this->ability(
+			'undo-test-mode',
+			__( 'Undo a test-mode switch', 'axle-staging-guard' ),
+			__( 'Puts one item back to what it was before this copy switched it, which means live keys are used again on this copy.', 'axle-staging-guard' ),
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'id' => array( 'type' => 'string' ),
+				),
+				'required'             => array( 'id' ),
+				'additionalProperties' => false,
+			),
+			$items_out,
+			array( $this, 'undo_test_mode' ),
+			$can_manage,
+			array(
+				'readonly'    => false,
+				'destructive' => true,
+				'idempotent'  => true,
+			)
+		);
+	}
+
+	/**
+	 * Ability: the test-mode items.
+	 *
+	 * @return array
+	 */
+	public function list_test_mode(): array {
+		return array( 'items' => $this->test_mode->items() );
+	}
+
+	/**
+	 * Ability: choose the ticked items.
+	 *
+	 * @param array|null $input Ability input.
+	 * @return array
+	 */
+	public function set_test_mode_recipe( $input = null ): array {
+		$this->test_mode->save( array_map( 'strval', (array) ( ( (array) $input )['items'] ?? array() ) ) );
+
+		return $this->list_test_mode();
+	}
+
+	/**
+	 * Ability: switch the pending items now.
+	 *
+	 * @return array|\WP_Error
+	 */
+	public function apply_test_mode() {
+		if ( ! $this->environment->is_guarded() ) {
+			return new \WP_Error( 'axle_staging_guard_test_mode_live', __( 'This is the live site, so nothing is switched to test mode here.', 'axle-staging-guard' ), array( 'status' => 409 ) );
+		}
+
+		$this->test_mode->apply_pending();
+
+		return $this->list_test_mode();
+	}
+
+	/**
+	 * Ability: undo one item.
+	 *
+	 * @param array|null $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function undo_test_mode( $input = null ) {
+		$id      = sanitize_key( (string) ( ( (array) $input )['id'] ?? '' ) );
+		$adapter = TestMode\Adapters::get( $id );
+
+		if ( null === $adapter || ! TestMode\Adapters::user_can( $id, $adapter ) ) {
+			return new \WP_Error( 'axle_staging_guard_test_mode_unknown', __( 'That is not a known item.', 'axle-staging-guard' ), array( 'status' => 404 ) );
+		}
+
+		$result = $this->test_mode->undo( $id );
+
+		return is_wp_error( $result ) ? $result : $this->list_test_mode();
 	}
 
 	/**
