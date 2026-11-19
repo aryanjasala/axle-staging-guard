@@ -15,6 +15,7 @@ use AryanX\Axle\StagingGuard\Http\Guard as HttpGuard;
 use AryanX\Axle\StagingGuard\Mail\Guard;
 use AryanX\Axle\StagingGuard\Service;
 use AryanX\Axle\StagingGuard\Settings;
+use AryanX\Axle\StagingGuard\TestMode\Recipe;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -66,6 +67,13 @@ final class SiteHealth implements Service {
 	private Hold $hold;
 
 	/**
+	 * The test-mode recipe.
+	 *
+	 * @var Recipe
+	 */
+	private Recipe $test_mode;
+
+	/**
 	 * Sets up the check.
 	 *
 	 * @param Settings    $settings    Saved settings.
@@ -74,14 +82,16 @@ final class SiteHealth implements Service {
 	 * @param HttpGuard   $http        Outgoing request guard.
 	 * @param Gate        $gate        The password gate.
 	 * @param Hold        $hold        Holds scheduled tasks.
+	 * @param Recipe      $test_mode   The test-mode recipe.
 	 */
-	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold ) {
+	public function __construct( Settings $settings, Environment $environment, Guard $mail, HttpGuard $http, Gate $gate, Hold $hold, Recipe $test_mode ) {
 		$this->settings    = $settings;
 		$this->environment = $environment;
 		$this->mail        = $mail;
 		$this->http        = $http;
 		$this->gate        = $gate;
 		$this->hold        = $hold;
+		$this->test_mode   = $test_mode;
 	}
 
 	/**
@@ -105,13 +115,17 @@ final class SiteHealth implements Service {
 
 		// These two only make sense on a copy that is not the live site.
 		if ( $this->environment->is_guarded() ) {
-			$tests['direct']['axle_staging_guard_gate']  = array(
+			$tests['direct']['axle_staging_guard_gate']      = array(
 				'label' => __( 'Axle Staging Guard password gate', 'axle-staging-guard' ),
 				'test'  => array( $this, 'run_gate' ),
 			);
-			$tests['direct']['axle_staging_guard_tasks'] = array(
+			$tests['direct']['axle_staging_guard_tasks']     = array(
 				'label' => __( 'Axle Staging Guard scheduled tasks', 'axle-staging-guard' ),
 				'test'  => array( $this, 'run_tasks' ),
+			);
+			$tests['direct']['axle_staging_guard_test_mode'] = array(
+				'label' => __( 'Axle Staging Guard test mode', 'axle-staging-guard' ),
+				'test'  => array( $this, 'run_test_mode' ),
 			);
 		}
 
@@ -131,6 +145,32 @@ final class SiteHealth implements Service {
 		}
 
 		return $this->result( 'recommended', __( 'This staging copy is open to anyone with its address', 'axle-staging-guard' ), __( 'Staging addresses show up in certificate logs and link lists, so people who were never told about this copy can find it. Turn on the password gate to keep them out, and let a client in with a share link.', 'axle-staging-guard' ), $action, 'axle_staging_guard_gate' );
+	}
+
+	/**
+	 * Tests whether payment and mail plugins on this copy still hold live settings.
+	 *
+	 * @return array Site Health result.
+	 */
+	public function run_test_mode(): array {
+		$action = sprintf( '<p><a href="%s">%s</a></p>', esc_url( admin_url( 'tools.php?page=' . SettingsPage::SLUG . '#asg-test-mode' ) ), esc_html__( 'Open test mode', 'axle-staging-guard' ) );
+		$live   = $this->test_mode->live_items();
+
+		if ( $live ) {
+			return $this->result(
+				'recommended',
+				__( 'Live payment or mail settings are still on this copy', 'axle-staging-guard' ),
+				sprintf(
+					/* translators: %s: names of plugins, separated by commas. */
+					__( 'These plugins are not in test mode on this copy: %s. A copy of the live site can charge real cards or send real email through them. Tick them on the live site, so every copy switches them by itself, or switch them here.', 'axle-staging-guard' ),
+					implode( ', ', $live )
+				),
+				$action,
+				'axle_staging_guard_test_mode'
+			);
+		}
+
+		return $this->result( 'good', __( 'No live payment or mail settings found on this copy', 'axle-staging-guard' ), __( 'Every supported payment and mail plugin that is set up here is in test mode, or none is installed.', 'axle-staging-guard' ), $action, 'axle_staging_guard_test_mode' );
 	}
 
 	/**

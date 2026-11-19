@@ -26,6 +26,7 @@ test( 'demo: a staging copy blocks, then redirects, its email', async ( { browse
 			await demo.pause( 1500 );
 
 			// Email from a staging copy is stopped and logged.
+			await demo.click( page.getByRole( 'link', { name: 'Logs' } ).first(), 300 );
 			await demo.type( page.locator( '#asg-test-to' ), 'customer@example.com' );
 			await demo.click( page.getByRole( 'button', { name: 'Send', exact: true } ), 300 );
 			await expect( page.locator( '.asg-test-result' ) ).toContainText( 'Test email blocked' );
@@ -33,6 +34,7 @@ test( 'demo: a staging copy blocks, then redirects, its email', async ( { browse
 			await demo.pause( 1800 );
 
 			// Or sent to one test inbox instead.
+			await demo.click( page.getByRole( 'link', { name: 'Guards' } ).first(), 300 );
 			await page.locator( '#asg-redirect-to' ).scrollIntoViewIfNeeded();
 			await demo.click( page.getByLabel( 'Send everything to one test address' ), 300 );
 			await demo.type( page.locator( '#asg-redirect-to' ), 'qa@youragency.com' );
@@ -42,6 +44,7 @@ test( 'demo: a staging copy blocks, then redirects, its email', async ( { browse
 			await demo.moveTo( page.locator( '.asg-state' ).nth( 1 ) );
 			await demo.pause( 1200 );
 
+			await demo.click( page.getByRole( 'link', { name: 'Logs' } ).first(), 300 );
 			await demo.type( page.locator( '#asg-test-to' ), 'customer@example.com' );
 			await demo.click( page.getByRole( 'button', { name: 'Send', exact: true } ), 300 );
 			await expect( page.locator( '.asg-log__row' ).first().locator( '.axle-badge' ) ).toHaveText( 'Redirected' );

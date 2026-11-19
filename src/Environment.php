@@ -102,6 +102,24 @@ final class Environment {
 	}
 
 	/**
+	 * Answers the family question "is this live?" for other Axle plugins.
+	 *
+	 * Hooked to `axle_environment_type`. Core says production for any site
+	 * that sets no WP_ENVIRONMENT_TYPE, so a copy found by the production lock
+	 * or the production hosts would still look live to Smoke Test, Block Theme
+	 * Ops and the rest. This returns what Staging Guard found instead. It never
+	 * turns an answer other than production into something else.
+	 *
+	 * @param mixed $type The type so far, from core or an earlier callback.
+	 * @return string
+	 */
+	public function publish_type( $type ): string {
+		$type = is_string( $type ) ? $type : 'production';
+
+		return 'production' === $type ? $this->type() : $type;
+	}
+
+	/**
 	 * Environment type: production, staging, development or local.
 	 *
 	 * @return string

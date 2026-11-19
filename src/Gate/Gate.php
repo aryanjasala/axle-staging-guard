@@ -7,6 +7,7 @@
 
 namespace AryanX\Axle\StagingGuard\Gate;
 
+use AryanX\Axle\StagingGuard\Admin\AxleUi;
 use AryanX\Axle\StagingGuard\Environment;
 use AryanX\Axle\StagingGuard\Service;
 use AryanX\Axle\StagingGuard\Settings;
@@ -20,7 +21,9 @@ defined( 'ABSPATH' ) || exit;
  * administrator turned it on and set a password. The front end, feeds, comment
  * posting and the REST API are covered. wp-login.php, WP-Cron and robots.txt always stay
  * reachable, and so do the IP addresses and paths the administrator allows.
- * admin-ajax.php and xmlrpc.php are not pages and are left alone.
+ * admin-ajax.php is gated for anyone who is not signed in or let through (anonymous
+ * wp_ajax_nopriv_* actions, WooCommerce ?wc-ajax=). xmlrpc.php is not a page and is left alone.
+ * Files in wp-content/uploads are served by the web server and never reach WordPress, so the gate cannot cover them.
  */
 final class Gate implements Service {
 
@@ -29,6 +32,11 @@ final class Gate implements Service {
 	public const FIELD      = 'axle_gate_password';
 
 	private const FAILS = 'axle_sg_gate_fail_';
+
+	/**
+	 * Hook priority that runs before WooCommerce's wc-ajax handler (template_redirect, 0).
+	 */
+	private const EARLY = -1000;
 
 	/**
 	 * Paths that are never gated.
@@ -73,7 +81,10 @@ final class Gate implements Service {
 	 * Hooks the gate into the front end and the REST API.
 	 */
 	public function register(): void {
-		add_action( 'template_redirect', array( $this, 'guard_front_end' ), 0 );
+		// Ahead of priority 0, where WooCommerce answers ?wc-ajax= requests, so those cannot pass the gate.
+		add_action( 'template_redirect', array( $this, 'guard_front_end' ), self::EARLY );
+		// admin-ajax.php answers anonymous visitors through wp_ajax_nopriv_* actions. admin_init runs before they do.
+		add_action( 'admin_init', array( $this, 'guard_ajax' ), 0 );
 		// wp-comments-post.php never reaches template_redirect, so a comment cannot be posted past the gate.
 		add_action( 'pre_comment_on_post', array( $this, 'guard_front_end' ), 0 );
 		add_filter( 'rest_authentication_errors', array( $this, 'guard_rest' ), PHP_INT_MAX );
@@ -266,7 +277,7 @@ final class Gate implements Service {
 	 * Why a request may pass, or an empty string when it may not.
 	 *
 	 * @param string $path Request path from Access::request_path().
-	 * @return string user, ip, path, session, link, filter or an empty string.
+	 * @return string user, ip, path, loopback, session, link, filter or an empty string.
 	 */
 	public function allowed_by( string $path ): string {
 		$reason = '';
@@ -278,6 +289,9 @@ final class Gate implements Service {
 			$reason = 'ip';
 		} elseif ( Access::path_matches( $path, $this->open_paths() ) ) {
 			$reason = 'path';
+		} elseif ( $this->is_loopback() ) {
+			// Only passes the gate. It never signs anyone in and never skips another guard.
+			$reason = 'loopback';
 		} else {
 			$reason = $this->cookie_reason();
 		}
@@ -286,7 +300,7 @@ final class Gate implements Service {
 		 * Filters whether a request passes the gate.
 		 *
 		 * @param bool   $allowed Whether the built-in rules let it through.
-		 * @param string $reason  Why: user, ip, path, session or link. Empty when it is not allowed.
+		 * @param string $reason  Why: user, ip, path, loopback, session or link. Empty when it is not allowed.
 		 * @param string $path    The request path, relative to the site address.
 		 */
 		$allowed = (bool) apply_filters( 'axle_staging_guard_gate_allow_request', '' !== $reason, $reason, $path );
@@ -296,6 +310,15 @@ final class Gate implements Service {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Whether this request is a signed request from this same site (Smoke Test, Runtime Doctor, Site Health).
+	 *
+	 * @return bool
+	 */
+	private function is_loopback(): bool {
+		return AxleUi::is_loopback();
 	}
 
 	/**
@@ -532,6 +555,37 @@ final class Gate implements Service {
 	}
 
 	/**
+	 * Gates admin-ajax.php for anyone the gate would stop. Runs first on `admin_init`.
+	 *
+	 * Signed-in people, share-link and password visitors, allowed IP addresses and
+	 * allowed paths (add /wp-admin/admin-ajax.php to open it) pass.
+	 */
+	public function guard_ajax(): void {
+		if ( ! wp_doing_ajax() || ! $this->is_active() ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only used to build a path that is cleaned and compared.
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+		$path = Access::request_path( $uri, (string) wp_parse_url( home_url(), PHP_URL_PATH ) );
+
+		if ( '' !== $this->allowed_by( $path ) ) {
+			return;
+		}
+
+		do_action(
+			'axle_staging_guard_gate_denied',
+			array(
+				'path'   => $path,
+				'method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET',
+				'error'  => 'ajax',
+			)
+		);
+
+		wp_die( esc_html__( 'This is a staging site. Log in, or use a share link, to see it.', 'axle-staging-guard' ), '', array( 'response' => absint( $this->status() ) ) );
+	}
+
+	/**
 	 * Checks a submitted password.
 	 *
 	 * @param string $ip The visitor's IP address.
@@ -645,9 +699,19 @@ final class Gate implements Service {
 		if ( 'locked' === $error ) {
 			header( 'Retry-After: ' . max( 1, $seconds ) );
 		}
-		status_header( 'locked' === $error ? 429 : $this->status() );
+		$status = 'locked' === $error ? 429 : $this->status();
 
-		Screen::render( $error, $seconds, wp_create_nonce( self::NONCE ) );
+		// The shared guest page sends core's no-cache headers. Older WordPress versions leave out no-store, so add it here.
+		add_filter(
+			'nocache_headers',
+			static function ( array $headers ): array {
+				$headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private';
+
+				return $headers;
+			}
+		);
+
+		Screen::render( $error, $seconds, wp_create_nonce( self::NONCE ), $status );
 		exit;
 	}
 

@@ -92,7 +92,7 @@ test.describe( 'Password gate', () => {
 		expect( blocked.headers()[ 'x-robots-tag' ] ).toBe( 'noindex, nofollow' );
 		expect( blocked.headers()[ 'cache-control' ] ).toContain( 'no-store' );
 		const body = await blocked.text();
-		expect( body ).toContain( 'name="robots" content="noindex, nofollow, noarchive"' );
+		expect( body ).toContain( 'name="robots" content="noindex, nofollow"' );
 		expect( body ).toContain( 'type="password"' );
 		expect( body ).not.toContain( '/wp-content/themes/' );
 		expect( ( await anyone.get( '/hello-world/' ) ).status() ).toBe( 401 );

@@ -18,6 +18,16 @@ test.describe( 'Screenshots', () => {
 		// The screens warn that only the lock makes this staging; hide that for the pictures.
 		wpEval( `update_user_meta( 1, 'axle_staging_guard_lock_notice_dismissed', AryanX\\Axle\\StagingGuard\\Environment::hash( wp_parse_url( home_url(), PHP_URL_HOST ) . ':' . wp_parse_url( home_url(), PHP_URL_PORT ) ) );` );
 		wpEval( `foreach ( get_posts( array( 'post_type' => 'axle_sg_mail', 'post_status' => 'any', 'numberposts' => 500, 'fields' => 'ids' ) ) as $id ) { wp_delete_post( $id, true ); }` );
+		// A shop's Stripe and mail plugins, set up on the live site, and a copy that already switched Stripe.
+		wpEval( `
+			get_role( 'administrator' )->add_cap( 'manage_woocommerce' );
+			update_option( 'woocommerce_stripe_settings', array( 'enabled' => 'yes', 'testmode' => 'no', 'secret_key' => 'sk_live_x' ), false );
+			update_option( 'wp_mail_smtp', array( 'mail' => array( 'mailer' => 'smtp' ) ), false );
+			$settings = new AryanX\\Axle\\StagingGuard\\Settings();
+			$settings->update( array( 'test_mode' => array( 'items' => array( 'stripe-for-woocommerce' ) ) ), false );
+			( new AryanX\\Axle\\StagingGuard\\TestMode\\Recipe( $settings, new AryanX\\Axle\\StagingGuard\\Environment( $settings ) ) )->apply_pending();
+			( new AryanX\\Axle\\StagingGuard\\TestMode\\Recipe( $settings, new AryanX\\Axle\\StagingGuard\\Environment( $settings ) ) )->dismiss();
+		` );
 		wpEval( `
 			$from = 'From: Example Shop <shop@example.com>';
 			wp_mail( 'sam.lee@example.net', 'Your order #1042 has shipped', "Hi Sam,\\n\\nYour order is on its way.", $from );
@@ -53,6 +63,7 @@ test.describe( 'Screenshots', () => {
 
 	test.afterAll( () => {
 		wp( 'option', 'delete', 'axle_staging_guard_settings' );
+		wpEval( `delete_option( 'woocommerce_stripe_settings' ); delete_option( 'wp_mail_smtp' ); get_role( 'administrator' )->remove_cap( 'manage_woocommerce' );` );
 		wpEval( `foreach ( get_posts( array( 'post_type' => 'axle_sg_mail', 'post_status' => 'any', 'numberposts' => 500, 'fields' => 'ids' ) ) as $id ) { wp_delete_post( $id, true ); }` );
 		wp( 'post', 'delete', post, '--force' );
 		wpEval( `
@@ -68,9 +79,10 @@ test.describe( 'Screenshots', () => {
 		await shot( page, 1, { clip: { x: 0, y: 0, width: 1280, height: 480 } } );
 	} );
 
-	test( '2: Tools > Staging Guard with the email log', async ( { page } ) => {
+	test( '2: Tools > Staging Guard, with email, outgoing calls and test mode on every copy', async ( { page } ) => {
 		await page.goto( '/wp-admin/tools.php?page=axle-staging-guard' );
-		await expect( page.locator( '.asg-log__row' ) ).toHaveCount( 3 );
+		await expect( page.locator( '#asg-test-mode' ) ).toContainText( 'Stripe for WooCommerce' );
+		await expect( page.locator( '.asg-test-results' ) ).toContainText( 'Switched to test mode' );
 		await shot( page, 2, { fullPage: true } );
 	} );
 
@@ -79,7 +91,8 @@ test.describe( 'Screenshots', () => {
 		const page = await context.newPage();
 		await page.goto( '/' );
 		await expect( page.locator( 'input[type=password]' ) ).toBeVisible();
-		await shot( page, 3, { clip: { x: 340, y: 130, width: 600, height: 460 } } );
+		const box = await page.locator( '#login' ).boundingBox();
+		await shot( page, 3, { clip: { x: Math.max( 0, box.x - 40 ), y: Math.max( 0, box.y - 20 ), width: box.width + 80, height: Math.min( 720 - Math.max( 0, box.y - 20 ), box.height + 60 ) } } );
 		await context.close();
 	} );
 
@@ -93,5 +106,11 @@ test.describe( 'Screenshots', () => {
 		await page.goto( '/wp-admin/tools.php?page=axle-staging-guard&tab=tasks' );
 		await expect( page.locator( '.asg-held-row' ) ).toHaveCount( 1 );
 		await shot( page, 5, { fullPage: true } );
+	} );
+
+	test( '6: the email log and tools on the Logs tab', async ( { page } ) => {
+		await page.goto( '/wp-admin/tools.php?page=axle-staging-guard&tab=logs' );
+		await expect( page.locator( '.asg-log__row' ) ).toHaveCount( 3 );
+		await shot( page, 6, { fullPage: true } );
 	} );
 } );

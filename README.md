@@ -39,12 +39,14 @@ Every agency has a staging story: a copy of the live database goes to staging an
 - **Outgoing API calls**: block everything except allowed hosts, or log only, for requests made through the WordPress HTTP API. A blocked call fails with a clear error, never a fake success
 - **Request list** with method, host, path, the plugin that made the call and how often, with secrets and query strings left out, and a **Test a URL** button
 - **Search engines**: `X-Robots-Tag` header, `noindex, nofollow` meta tag, a blocking robots.txt, no sitemap
-- **Password gate**: visitors who are not logged in see a small password screen (401, never cached, never indexed). Off by default, never on the live site. Skip it by IP range or path, with a lockout after wrong passwords
+- **Test mode on every copy**: tick WooPayments, Stripe for WooCommerce, PayPal Payments, Gravity Forms Stripe or WP Mail SMTP on the live site. The tick list travels in the database and does nothing there. On the first request on a copy each ticked item switches to test mode once, the old value is kept, a notice lists what changed and every item has an Undo
+- **Password gate**: visitors who are not logged in see WordPress's own login screen with a password field (401, never cached, never indexed), and a Log in link for the team. Off by default, never on the live site. Covers pages, feeds, comments, the REST API, admin-ajax.php and WooCommerce `?wc-ajax=`. Skip it by IP range or path, with a lockout after wrong passwords
 - **Share links**: a named, timed link (1 to 30 days) that lets one person in without the password. The list shows when each was last used, and a revoked link ends access on the next page view
 - **Scheduled tasks**: see every WP-Cron task with its owner and next run, tick the ones to hold on staging, and run one by hand. Held tasks are listed, never silently dropped
 - **Admin bar** colored by environment, and `[Staging]` at the start of every browser tab title
 - **Production lock**: mark the live site once, and every database copy on another domain counts as staging
-- **Site Health** checks that warn when email could still reach real people, when a staging copy is open to anyone, and when risky tasks still run
+- **Site Health** checks that warn when email could still reach real people, when a staging copy is open to anyone, when risky tasks still run and when live payment or mail settings remain on a copy
+- **Family answer**: other Axle plugins ask `AxleUi::environment_type()` ('is this live?'), and this plugin answers staging for a copy it found by lock or hosts, where core says production
 
 ## Install
 
@@ -78,14 +80,15 @@ It decides a copy is not live from `WP_ENVIRONMENT_TYPE` when that is set, other
 <table>
   <tr>
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-1.png" alt="The coloured admin bar on a staging copy"><br><sub>The coloured admin bar on a staging copy</sub></td>
-    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Staging Guard with the email log"><br><sub>Tools > Staging Guard with the email log</sub></td>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-2.png" alt="Tools > Staging Guard: email, outgoing calls and test mode on every copy, with what the copy switched"><br><sub>Tools > Staging Guard: email, outgoing calls and test mode on every copy, with what the copy switched</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-3.png" alt="The password gate screen visitors see"><br><sub>The password gate screen visitors see</sub></td>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-3.png" alt="The password screen visitors see, in WordPress's own login look"><br><sub>The password screen visitors see, in WordPress's own login look</sub></td>
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-4.png" alt="Share links, each named and timed, with when it was last used"><br><sub>Share links, each named and timed, with when it was last used</sub></td>
   </tr>
   <tr>
     <td width="50%" valign="top"><img src=".wordpress-org/screenshot-5.png" alt="Scheduled tasks, with the ones to hold on staging"><br><sub>Scheduled tasks, with the ones to hold on staging</sub></td>
+    <td width="50%" valign="top"><img src=".wordpress-org/screenshot-6.png" alt="The Logs tab: stopped email, the tools and stopped outgoing calls"><br><sub>The Logs tab: stopped email, the tools and stopped outgoing calls</sub></td>
   </tr>
 </table>
 
@@ -124,10 +127,13 @@ src/
 │   ├── Tasks.php          the schedule, owners, suggestions, protected hooks
 │   ├── Hold.php           holds tasks, runs one once
 │   └── Log.php            the held list
+├── TestMode/
+│   ├── Adapters.php       where each plugin keeps its test-mode switch
+│   └── Recipe.php         the ticked list, the first-request switch, Undo
 ├── Search/Robots.php      noindex header and tag, robots.txt, sitemaps
 ├── Admin/                 settings screen and its tabs, admin bar and tab titles
 ├── Health/SiteHealth.php  the Site Health checks
-└── Cli/                   wp axle-staging-guard, gate, gate link and hold
+└── Cli/                   wp axle-staging-guard, gate, gate link, hold and test-mode
 tests/
 ├── Unit/                  PHPUnit
 └── e2e/                   Playwright specs and the Docker site
@@ -155,9 +161,9 @@ Small plugins that each fill one gap in WordPress, all free with no pro version.
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-runtime-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Runtime Doctor](https://github.com/aryanjasala/axle-runtime-doctor) | Check OPcache coverage, the object cache, PHP support and limits, cron and more, with the fix for your host |
 | <img src="https://raw.githubusercontent.com/aryanjasala/axle-smoke-test/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Axle Smoke Test](https://github.com/aryanjasala/axle-smoke-test) | Check key pages after every update or deploy, see what broke and roll it back |
 | <img src="https://raw.githubusercontent.com/aryanjasala/block-doctor/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Doctor](https://github.com/aryanjasala/block-doctor) | Scan the site for broken blocks and fix them in bulk, with undo. See which posts use each block before you switch a plugin off |
-| <img src="https://raw.githubusercontent.com/aryanjasala/block-theme-ops/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Theme Ops](https://github.com/aryanjasala/block-theme-ops) | Find Site Editor changes that override your theme files, see the diff, reset them or send them to Git |
+| <img src="https://raw.githubusercontent.com/aryanjasala/block-theme-ops/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Block Theme Ops](https://github.com/aryanjasala/block-theme-ops) | Find Site Editor changes that override your theme files, see the diff, reset them, send them to Git, move them to another site or lock them |
 | <img src="https://raw.githubusercontent.com/aryanjasala/role-right-sizer/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Role Right-Sizer](https://github.com/aryanjasala/role-right-sizer) | Recommends the smallest role each user needs, from what they actually do |
-| <img src="https://raw.githubusercontent.com/aryanjasala/update-rehearsal/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Update Rehearsal](https://github.com/aryanjasala/update-rehearsal) | Try plugin, theme, core and PHP updates on a disposable copy of your site in WordPress Playground first |
+| <img src="https://raw.githubusercontent.com/aryanjasala/update-rehearsal/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [Update Rehearsal](https://github.com/aryanjasala/update-rehearsal) | Try plugin, theme, core and PHP updates, a new plugin, or life without one, on a disposable copy of your site in WordPress Playground first |
 | <img src="https://raw.githubusercontent.com/aryanjasala/user-session-manager/main/.wordpress-org/icon-128x128.png" alt="" width="32"> | [User Session Manager](https://github.com/aryanjasala/user-session-manager) | See every device signed in, sign out one, and limit sessions per role |
 
 ## License

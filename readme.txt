@@ -40,6 +40,7 @@ Axle Staging Guard prevents all five, on every copy that is not the live site.
 * Puts a password in front of the copy. Visitors who are not logged in see a small password screen instead of the site. It is off until you turn it on, and the screen is never cached or indexed. Logged-in users, IP addresses and paths you list (a health check, a webhook) skip it, and wrong passwords lock an address out for a while.
 * Makes share links for the gate: one named link per person ("For Priya at the client"), valid for 1 to 30 days, with the time it was last used in the list. Revoke a link and that person is out on their next page view. No account needed.
 * Lists every scheduled task (WP-Cron) with its owner and next run, and holds the ones you tick on staging, such as a weekly newsletter export or a subscription renewal. Tasks that look risky are ticked for you, but nothing is held until you save. A held task is listed with when it was due, never dropped silently, and you can run it once by hand. WordPress's own clean-up and privacy tasks cannot be held.
+* Switches payment and mail plugins to test mode by itself on every copy. On the live site you tick what to switch (WooPayments, Stripe for WooCommerce, PayPal Payments, Gravity Forms Stripe Add-On, WP Mail SMTP). The choice is saved in the database, does nothing on the live site and travels with every copy. On the first request on a copy each ticked item switches to test mode once, the old value is kept, you get a notice listing what changed, and each item has an Undo.
 * Adds Site Health checks that warn when email from a staging copy could still reach real people, when staging copies of the live site would not be detected, when a staging copy is open to anyone, and when tasks that look risky still run.
 * Has a Help tab on every screen and works with the keyboard and screen readers.
 
@@ -85,6 +86,7 @@ Fix the email behaviour per environment, so a database copy cannot change it:
 * `wp axle-staging-guard set mail_mode redirect` changes a setting, and `wp axle-staging-guard clear-log` empties the lists.
 * `wp axle-staging-guard gate on --password=...`, `gate off` and `gate status` control the password gate.
 * `wp axle-staging-guard gate link create "For Priya" --days=7`, `gate link list` and `gate link revoke <id>` manage share links.
+* `wp axle-staging-guard test-mode list`, `test-mode tick <id>`, `test-mode untick <id>`, `test-mode run` and `test-mode undo <id>` manage the test-mode recipe.
 * `wp axle-staging-guard hold list`, `hold add <hook>`, `hold remove <hook>`, `hold run <hook>` and `hold log` manage held scheduled tasks.
 
 **Try it before you install.** [try.axlewp.com/axle-staging-guard](https://try.axlewp.com/axle-staging-guard) opens a private WordPress in your browser with this plugin and some demo content.
@@ -131,6 +133,26 @@ Visitors who are not logged in. Logged-in users, the IP addresses and ranges you
 
 Make one under Tools > Staging Guard > Password gate: type who it is for and pick 1 to 30 days. Send the link to that person. Opening it lets them in without the password and without an account, and sends them to the page they asked for. Revoke the link and their access ends on their next page view. Changing the gate password signs out everyone who used the password, but not people with a link.
 
+= Does the password gate cover images and files in wp-content/uploads? =
+
+No. Files in the uploads folder are served by the web server and never reach WordPress, so the gate cannot ask for a password there. Anyone with the exact address of a file can open it. If that matters, protect the folder at the server, for example with HTTP basic authentication for the whole staging site. Pages, feeds, comment posting, the REST API and admin-ajax.php are covered.
+
+= Does the gate cover WooCommerce and admin-ajax.php? =
+
+Yes. Since this version, anonymous admin-ajax.php requests are behind the gate on gated copies. A visitor who is not logged in and has no password cookie gets the password screen for `?wc-ajax=` requests and an error from admin-ajax.php, so cart fragments, live search and checkout do not answer anonymous visitors. If a webhook, a monitor or a front-end feature that works for visitors needs it, open the path: Tools > Staging Guard > Password gate > "Skip the gate for paths", one per line, for example `/wp-admin/admin-ajax.php`. Visitors who entered the password or used a share link are let through already.
+
+= Which plugins can it put in test mode, and what exactly does it change? =
+
+WooPayments, Stripe for WooCommerce, PayPal Payments, the Gravity Forms Stripe Add-On and WP Mail SMTP. For each it changes one value: the plugin's own test-mode switch (for WP Mail SMTP, "Do Not Send"). Keys and every other setting are left alone, and the old value is kept so Undo puts it back. Other developers can add plugins with the `axle_staging_guard_test_mode_adapters` filter. It never changes anything on the live site: the switch only runs on a copy.
+
+= Does the test-mode choice run again when I make a new copy? =
+
+Yes. The tick list lives in the database, so a new copy of the live database brings it along, and the first request on that copy switches the ticked items. A copy is told apart by its address, so each copy switches once.
+
+= Does a health check or monitor get past the password gate? =
+
+Requests that one Axle plugin makes to its own site (Smoke Test, Runtime Doctor, Wayback) carry a signed header that lets them through the gate and nothing else. Outside monitors still need an IP address or path you list.
+
 = Does a held scheduled task run later? =
 
 No. A held task stays on the schedule but is never started on that copy, and it is listed with when it was due. Site Health may report it as late, which is expected. Run it once by hand from Tools > Staging Guard > Scheduled tasks or with `wp axle-staging-guard hold run`. Tasks that WordPress needs to stay healthy cannot be held.
@@ -158,10 +180,11 @@ Code that does not go through the WordPress HTTP API: a PHP SDK that opens its o
 == Screenshots ==
 
 1. The coloured admin bar on a staging copy.
-2. Tools > Staging Guard with the email log.
-3. The password gate screen visitors see.
+2. Tools > Staging Guard: email, outgoing calls and test mode on every copy, with what the copy switched.
+3. The password screen visitors see, in WordPress's own login look.
 4. Share links, each named and timed, with when it was last used.
 5. Scheduled tasks, with the ones to hold on staging.
+6. The Logs tab: stopped email, the tools and stopped outgoing calls.
 
 == Changelog ==
 

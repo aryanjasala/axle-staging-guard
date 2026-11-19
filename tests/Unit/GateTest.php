@@ -237,4 +237,67 @@ final class GateTest extends TestCase {
 		$this->assertSame( 720, $gate->session_hours() );
 		$this->assertSame( 400, $gate->status() );
 	}
+
+	public function test_admin_ajax_is_stopped_for_an_anonymous_visitor(): void {
+		$_SERVER['REQUEST_URI'] = '/wp-admin/admin-ajax.php';
+		Functions\when( 'wp_doing_ajax' )->justReturn( true );
+		Functions\when( 'nocache_headers' )->justReturn( null );
+		Functions\when( 'wp_die' )->alias(
+			static function ( $message, $title = '', $args = array() ) {
+				throw new \RuntimeException( 'died:' . ( $args['response'] ?? 0 ) );
+			}
+		);
+		Actions\expectDone( 'axle_staging_guard_gate_denied' )->once();
+
+		$this->expectExceptionMessage( 'died:401' );
+		$this->with_password()->guard_ajax();
+	}
+
+	public function test_admin_ajax_passes_when_the_path_is_opened_or_the_site_is_live_or_it_is_not_ajax(): void {
+		$_SERVER['REQUEST_URI'] = '/wp-admin/admin-ajax.php';
+		Functions\when( 'wp_doing_ajax' )->justReturn( true );
+		Functions\when( 'wp_die' )->alias(
+			static function () {
+				throw new \RuntimeException( 'died' );
+			}
+		);
+
+		$this->with_password( array( 'gate_paths' => array( '/wp-admin/admin-ajax.php' ) ) )->guard_ajax();
+		$this->gate( array( 'gate_enabled' => true, 'gate_hash' => 'x' ), 'staging.example.test' )->guard_ajax();
+		$this->addToAssertionCount( 1 );
+
+		Functions\when( 'wp_doing_ajax' )->justReturn( false );
+		$this->with_password()->guard_ajax();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_the_gate_runs_before_woocommerce_answers_wc_ajax(): void {
+		$gate = $this->with_password();
+		$gate->register();
+
+		$this->assertSame( -1000, has_action( 'template_redirect', array( $gate, 'guard_front_end' ) ) );
+		$this->assertSame( 0, has_action( 'admin_init', array( $gate, 'guard_ajax' ) ) );
+	}
+
+	public function test_a_signed_loopback_request_passes_the_gate_and_nothing_else(): void {
+		Functions\when( 'site_url' )->justReturn( 'https://staging.example.test' );
+		$gate    = $this->with_password();
+		$headers = \AryanX\Axle\StagingGuard\Admin\AxleUi::loopback_headers( 'https://staging.example.test/?p=1' );
+
+		$this->assertArrayHasKey( 'X-Axle-Loopback', $headers );
+		$this->assertSame( '', $gate->allowed_by( '/about' ), 'Without the header it is stopped.' );
+
+		$_SERVER['HTTP_X_AXLE_LOOPBACK'] = $headers['X-Axle-Loopback'];
+		$this->assertSame( 'loopback', $gate->allowed_by( '/about' ) );
+		$this->assertFalse( is_user_logged_in(), 'It never signs anyone in.' );
+
+		$_SERVER['HTTP_X_AXLE_LOOPBACK'] = '1700000000.' . str_repeat( 'a', 64 );
+		$this->assertSame( '', $gate->allowed_by( '/about' ), 'A forged or old header is refused.' );
+
+		$_SERVER['HTTP_X_AXLE_LOOPBACK'] = time() . '.' . str_repeat( 'a', 64 );
+		$this->assertSame( '', $gate->allowed_by( '/about' ), 'A wrong signature is refused.' );
+
+		$this->assertSame( array(), \AryanX\Axle\StagingGuard\Admin\AxleUi::loopback_headers( 'https://elsewhere.example.org/' ), 'Headers are never sent to another host.' );
+		unset( $_SERVER['HTTP_X_AXLE_LOOPBACK'] );
+	}
 }

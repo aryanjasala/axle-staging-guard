@@ -131,4 +131,18 @@ final class EnvironmentTest extends TestCase {
 			Settings::parse_allowlist( "@Agency.test\nqa@client.test, not-an-email @nodot\n@agency.test" )
 		);
 	}
+
+	public function test_the_family_answer_says_staging_for_a_copy_core_calls_production(): void {
+		$this->assertSame( 'staging', $this->environment( Environment::hash( 'live.example.com' ) )->publish_type( 'production' ) );
+	}
+
+	public function test_the_family_answer_stays_production_on_the_live_site_and_when_nothing_is_set(): void {
+		$this->assertSame( 'production', $this->environment( Environment::hash( 'www.example.com' ) )->publish_type( 'production' ) );
+		$this->assertSame( 'production', $this->environment()->publish_type( 'production' ) );
+	}
+
+	public function test_the_family_answer_never_changes_another_answer(): void {
+		$this->assertSame( 'development', $this->environment( Environment::hash( 'live.example.com' ) )->publish_type( 'development' ) );
+		$this->assertSame( 'staging', $this->environment( Environment::hash( 'www.example.com' ) )->publish_type( 'staging' ) );
+	}
 }
