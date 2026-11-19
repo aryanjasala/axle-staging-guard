@@ -701,6 +701,16 @@ final class Gate implements Service {
 		}
 		$status = 'locked' === $error ? 429 : $this->status();
 
+		// The shared guest page sends core's no-cache headers. Older WordPress versions leave out no-store, so add it here.
+		add_filter(
+			'nocache_headers',
+			static function ( array $headers ): array {
+				$headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private';
+
+				return $headers;
+			}
+		);
+
 		Screen::render( $error, $seconds, wp_create_nonce( self::NONCE ), $status );
 		exit;
 	}

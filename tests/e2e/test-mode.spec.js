@@ -108,6 +108,7 @@ test.describe( 'Test mode on every copy', () => {
 	} );
 
 	test( 'abilities list the items, set the recipe and undo a switch', async ( { rest } ) => {
+		test.skip( 'yes' !== wpEval( "echo function_exists( 'wp_register_ability' ) ? 'yes' : 'no';" ), 'The Abilities API needs WordPress 6.9.' );
 		live();
 		const run = ( name, method, input ) => rest( method, `/wp-abilities/v1/abilities/axle-staging-guard/${ name }/run`, input ? { input } : undefined );
 
